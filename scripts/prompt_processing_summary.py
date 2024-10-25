@@ -13,7 +13,7 @@ from queries import (
 )
 
 
-def make_summary_message(day_obs):
+def make_summary_message(day_obs, instrument):
     """Make Prompt Processing summary message for a night
 
     Parameters
@@ -32,7 +32,7 @@ def make_summary_message(day_obs):
     butler_nocollection = dafButler.Butler("/repo/embargo")
     raw_exposures = butler_nocollection.query_dimension_records(
         "exposure",
-        instrument="LATISS",
+        instrument=instrument,
         where=f"day_obs={day_obs_int} AND exposure.can_see_sky AND exposure.observation_type='science'",
         explain=False,
     )
@@ -45,7 +45,7 @@ def make_summary_message(day_obs):
 
     raw_exposures = butler_nocollection.query_dimension_records(
         "exposure",
-        instrument="LATISS",
+        instrument=instrument,
         where=f"day_obs=day_obs_int AND exposure.science_program IN (survey)",
         bind={"day_obs_int": day_obs_int, "survey": survey},
         explain=False,
@@ -60,7 +60,7 @@ def make_summary_message(day_obs):
 
     try:
         collections = butler_nocollection.collections.query(
-            f"LATISS/prompt/output-{day_obs:s}"
+            f"{instrument}/prompt/output-{day_obs:s}"
         )
         collection = list(collections)[0]
     except dafButler.MissingCollectionError:
@@ -70,7 +70,7 @@ def make_summary_message(day_obs):
     sfm_counts = len(
         butler_nocollection.query_datasets(
             "isr_log",
-            collections=f"LATISS/prompt/output-{day_obs:s}/SingleFrame*",
+            collections=f"{instrument}/prompt/output-{day_obs:s}/SingleFrame*",
             where=f"exposure.science_program IN (survey)",
             bind={"survey": survey},
             find_first=False,
@@ -80,7 +80,7 @@ def make_summary_message(day_obs):
     dia_counts = len(
         butler_nocollection.query_datasets(
             "isr_log",
-            collections=f"LATISS/prompt/output-{day_obs:s}/ApPipe*",
+            collections=f"{instrument}/prompt/output-{day_obs:s}/ApPipe*",
             where=f"exposure.science_program IN (survey)",
             bind={"survey": survey},
             find_first=False,
@@ -88,7 +88,7 @@ def make_summary_message(day_obs):
         )
     )
 
-    b = dafButler.Butler("/repo/embargo", collections=[collection, "LATISS/defaults"])
+    b = dafButler.Butler("/repo/embargo", collections=[collection, "{instrument}/defaults"])
 
     log_visit_detector = set(
         [
@@ -138,7 +138,7 @@ def make_summary_message(day_obs):
     )
 
     output_lines.append(
-        f"<https://usdf-rsp-dev.slac.stanford.edu/times-square/github/lsst-dm/vv-team-notebooks/PREOPS-prompt-error-msgs?day_obs={day_obs}&instrument=LATISS&ts_hide_code=1|Full Error Log>"
+        f"<https://usdf-rsp-dev.slac.stanford.edu/times-square/github/lsst-dm/vv-team-notebooks/PREOPS-prompt-error-msgs?day_obs={day_obs}&instrument={instrument}&ts_hide_code=1|Full Error Log>"
     )
 
     raws = {r.id: r.group for r in raw_exposures}
@@ -146,7 +146,7 @@ def make_summary_message(day_obs):
         (raws[visit], detector) for visit, detector in log_visit_detector
     }
     df = get_status_code_from_loki(day_obs)
-    df = df[(df["instrument"] == "LATISS") & (df["group"].isin(raws.values()))]
+    df = df[(df["instrument"] == instrument) & (df["group"].isin(raws.values()))]
 
     status_groups = df.set_index(["group", "detector"]).groupby("code").groups
     for code in status_groups:
@@ -162,7 +162,7 @@ def make_summary_message(day_obs):
             case 500:
                 df = get_timeout_from_loki(day_obs)
                 df = df[
-                    (df["instrument"] == "LATISS") & (df["group"].isin(raws.values()))
+                    (df["instrument"] == instrument) & (df["group"].isin(raws.values()))
                 ].set_index(["group", "detector"])
                 indices = status_groups[code].intersection(df.index)
                 if not indices.empty:
@@ -172,7 +172,7 @@ def make_summary_message(day_obs):
                     output_lines.append(f"  - {counts} to be investigated.")
 
     output_lines.append(
-        f"<https://usdf-rsp-dev.slac.stanford.edu/times-square/github/lsst-sqre/times-square-usdf/prompt-processing/groups?date={day_obs}&instrument=LATISS&survey={survey}&mode=DEBUG&ts_hide_code=1|Timing plots>"
+        f"<https://usdf-rsp-dev.slac.stanford.edu/times-square/github/lsst-sqre/times-square-usdf/prompt-processing/groups?date={day_obs}&instrument={instrument}&survey={survey}&mode=DEBUG&ts_hide_code=1|Timing plots>"
     )
 
     return "\n".join(output_lines)
@@ -180,12 +180,15 @@ def make_summary_message(day_obs):
 
 if __name__ == "__main__":
     url = os.getenv("SLACK_WEBHOOK_URL")
+    instrument = os.getenv("INSTRUMENT")
+    if not instrument:
+        instrument = "LATISS"
 
     day_obs = date.today() - timedelta(days=1)
     day_obs_string = day_obs.strftime("%Y-%m-%d")
-    summary = make_summary_message(day_obs_string)
+    summary = make_summary_message(day_obs_string, instrument)
     output_message = (
-        f":clamps: *LATISS {day_obs.strftime('%A %Y-%m-%d')}* :clamps: \n" + summary
+        f":clamps: *{instrument} {day_obs.strftime('%A %Y-%m-%d')}* :clamps: \n" + summary
     )
 
     if not url:

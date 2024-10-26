@@ -57,7 +57,7 @@ def get_start_end(day_obs):
     return start, end
 
 
-async def get_next_visit_events(day_obs, sal_index, survey):
+async def get_next_visit_events(day_obs, sal_index, survey=None):
     """Obtain uncanceled nextVisit events
 
     Parameters
@@ -69,8 +69,9 @@ async def get_next_visit_events(day_obs, sal_index, survey):
         Index of Script SAL component. Use this as a proxy of the instrument.
         TODO: just use instrument.
 
-    survey : `str`
-        The imaging survey name of interest.
+    survey : `str`, optional
+        The imaging survey name of interest. If None, get all events regardless
+        of the survey.
     """
     client = EfdClient("usdf_efd")
 
@@ -85,13 +86,14 @@ async def get_next_visit_events(day_obs, sal_index, survey):
         _log.info(f"No events on {day_obs}")
         return pandas.DataFrame()
 
-    # Only select on-sky exposures from the selected survey
-    df = df.loc[
-        (df["coordinateSystem"] == 2)
-        & (df["salIndex"] == sal_index)
-        & (df["survey"] == survey)
-    ].set_index("groupId")
-    _log.info(f"There were {len(df)} {survey} nextVisit events on {day_obs}")
+    if survey:
+        # Only select on-sky exposures from the selected survey
+        df = df.loc[
+            (df["coordinateSystem"] == 2)
+            & (df["salIndex"] == sal_index)
+            & (df["survey"] == survey)
+        ].set_index("groupId")
+        _log.info(f"There were {len(df)} {survey} nextVisit events on {day_obs}")
 
     # Ignore the explicitly canceled groups
     if not canceled.empty:

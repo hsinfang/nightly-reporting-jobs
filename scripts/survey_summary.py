@@ -1,4 +1,5 @@
 import asyncio
+import requests
 import sys
 import os
 from lsst.daf.butler import Butler
@@ -58,3 +59,11 @@ if __name__ == "__main__":
         print("Message: ")
         print(output_message)
         sys.exit(1)
+
+    res = requests.post(
+        url, headers={"Content-Type": "application/json"}, json={"text": output_message}
+    )
+
+    if res.status_code != 200:
+        print("Failed to send message")
+        print(res)

@@ -37,6 +37,7 @@ if __name__ == "__main__":
 
     for block in df["survey"].unique():
         count_events = len(df[df["survey"] == block])
+        filters = df[df["survey"] == block]["filters"].unique()
 
         raw_exposures = butler_nocollection.query_dimension_records(
             "exposure",
@@ -46,7 +47,7 @@ if __name__ == "__main__":
             explain=False,
         )
         output_lines.append(
-            f"{block}: {count_events} nextVisit events. {len(raw_exposures)} raw exposures."
+            f"{block}: {count_events} nextVisit events with filters {filters}. {len(raw_exposures)} raw exposures."
         )
 
     output_message = (

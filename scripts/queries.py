@@ -57,7 +57,7 @@ def get_start_end(day_obs):
     return start, end
 
 
-async def get_next_visit_events(day_obs, sal_index, survey=None):
+async def get_next_visit_events(day_obs, instrument, survey=None):
     """Obtain uncanceled nextVisit events
 
     Parameters
@@ -65,9 +65,8 @@ async def get_next_visit_events(day_obs, sal_index, survey=None):
     day_obs : `str`
         day_obs in the format of YYYY-MM-DD.
 
-    sal_index : `int`
-        Index of Script SAL component. Use this as a proxy of the instrument.
-        TODO: just use instrument.
+    instrument : `str`
+        The instrument name.
 
     survey : `str`, optional
         The imaging survey name of interest. If None, get all events regardless
@@ -90,10 +89,16 @@ async def get_next_visit_events(day_obs, sal_index, survey=None):
         # Only select on-sky exposures from the selected survey
         df = df.loc[
             (df["coordinateSystem"] == 2)
-            & (df["salIndex"] == sal_index)
+            & (df["instrument"] == instrument)
             & (df["survey"] == survey)
         ].set_index("groupId")
         _log.info(f"There were {len(df)} {survey} nextVisit events on {day_obs}")
+    else:
+        df = df.loc[
+            (df["coordinateSystem"] == 2)
+            & (df["instrument"] == instrument)
+        ].set_index("groupId")
+        _log.info(f"There were {len(df)} {instrument} nextVisit events on {day_obs}")
 
     # Ignore the explicitly canceled groups
     if not canceled.empty:

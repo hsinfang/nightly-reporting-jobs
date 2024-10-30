@@ -18,7 +18,7 @@ if __name__ == "__main__":
     day_obs_string = day_obs.strftime("%Y-%m-%d")
     day_obs_int = int(day_obs_string.replace("-", ""))
 
-    df = asyncio.run(get_next_visit_events(day_obs_string, 2))
+    df = asyncio.run(get_next_visit_events(day_obs_string, instrument))
     df = df[df["survey"] != ""]
 
     output_lines = []

@@ -27,7 +27,7 @@ def make_summary_message(day_obs, instrument):
     day_obs_int = int(day_obs.replace("-", ""))
 
     survey = "BLOCK-306"
-    next_visits = asyncio.run(get_next_visit_events(day_obs, 2, survey))
+    next_visits = asyncio.run(get_next_visit_events(day_obs, instrument, survey))
 
     if instrument == "LATISS":
         butler_alias = "embargo_old"

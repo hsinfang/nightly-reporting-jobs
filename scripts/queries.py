@@ -88,16 +88,11 @@ async def get_next_visit_events(day_obs, instrument, survey=None):
     if survey:
         # Only select on-sky exposures from the selected survey
         df = df.loc[
-            (df["coordinateSystem"] == 2)
-            & (df["instrument"] == instrument)
-            & (df["survey"] == survey)
+            (df["instrument"] == instrument) & (df["survey"] == survey)
         ].set_index("groupId")
         _log.info(f"There were {len(df)} {survey} nextVisit events on {day_obs}")
     else:
-        df = df.loc[
-            (df["coordinateSystem"] == 2)
-            & (df["instrument"] == instrument)
-        ].set_index("groupId")
+        df = df.loc[(df["instrument"] == instrument)].set_index("groupId")
         _log.info(f"There were {len(df)} {instrument} nextVisit events on {day_obs}")
 
     # Ignore the explicitly canceled groups

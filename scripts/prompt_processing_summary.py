@@ -26,13 +26,14 @@ def make_summary_message(day_obs, instrument):
 
     day_obs_int = int(day_obs.replace("-", ""))
 
-    survey = "BLOCK-306"
-    next_visits = asyncio.run(get_next_visit_events(day_obs, instrument, survey))
 
     if instrument == "LATISS":
         butler_alias = "embargo_old"
+        survey = "BLOCK-306"
     else:
         butler_alias = "embargo"
+        survey = "PP-SURVEY"
+    next_visits = asyncio.run(get_next_visit_events(day_obs, instrument, survey))
     butler_nocollection = dafButler.Butler(butler_alias)
     raw_exposures = butler_nocollection.query_dimension_records(
         "exposure",

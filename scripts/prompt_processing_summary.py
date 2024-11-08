@@ -72,6 +72,16 @@ def make_summary_message(day_obs, instrument):
         output_lines.append(f"No output collection was found for {day_obs:s}")
         return "\n".join(output_lines)
 
+    isr_counts = len(
+        butler_nocollection.query_datasets(
+            "isr_log",
+            collections=f"{instrument}/prompt/output-{day_obs:s}/Isr/*",
+            where=f"exposure.science_program IN (survey)",
+            bind={"survey": survey},
+            find_first=False,
+            explain=False,
+        )
+    )
     sfm_counts = len(
         butler_nocollection.query_datasets(
             "isr_log",
@@ -106,8 +116,22 @@ def make_summary_message(day_obs, instrument):
         ]
     )
     output_lines.append(
-        "Number of main pipeline runs: {:d} total, {:d} SingleFrame, {:d} ApPipe".format(
-            len(log_visit_detector), sfm_counts, dia_counts
+        "Number of main pipeline runs: {:d} total, {:d} Isr, {:d} SingleFrame, {:d} ApPipe".format(
+            len(log_visit_detector), isr_counts, sfm_counts, dia_counts
+        )
+    )
+
+    isr_outputs = len(
+        b.query_datasets(
+            "postISRCCD",
+            where=f"exposure.science_program IN (survey)",
+            bind={"survey": survey},
+            explain=False,
+        )
+    )
+    output_lines.append(
+        "- Isr: {:d} attempts, {:d} succeeded.".format(
+            isr_counts + sfm_counts + dia_counts, isr_outputs
         )
     )
 

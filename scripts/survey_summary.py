@@ -47,7 +47,7 @@ if __name__ == "__main__":
             explain=False,
         )
         output_lines.append(
-            f"{block}: {count_events} nextVisit events with filters {filters}. {len(raw_exposures)} raw exposures."
+            f"{block}: {count_events} uncanceled nextVisit events with filters {filters}. {len(raw_exposures)} raw exposures."
         )
 
     output_message = (

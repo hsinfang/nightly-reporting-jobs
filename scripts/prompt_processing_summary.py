@@ -208,10 +208,11 @@ def make_summary_message(day_obs, instrument):
 
 
 if __name__ == "__main__":
-    url = os.getenv("SLACK_WEBHOOK_URL")
     instrument = os.getenv("INSTRUMENT")
     if not instrument:
         instrument = "LATISS"
+    webhook = "SLACK_WEBHOOK_URL_" + instrument.upper()
+    url = os.getenv(webhook)
 
     day_obs = date.today() - timedelta(days=1)
     day_obs_string = day_obs.strftime("%Y-%m-%d")
@@ -221,7 +222,7 @@ if __name__ == "__main__":
     )
 
     if not url:
-        print("Must set environment variable SLACK_WEBHOOK_URL in order to post")
+        print(f"Must set environment variable {webhook} in order to post")
         print("Message: ")
         print(output_message)
         sys.exit(1)

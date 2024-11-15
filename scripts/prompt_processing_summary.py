@@ -32,7 +32,7 @@ def make_summary_message(day_obs, instrument):
         survey = "BLOCK-306"
     else:
         butler_alias = "embargo"
-        survey = "PP-SURVEY"
+        survey = "BLOCK-320"
     next_visits = asyncio.run(get_next_visit_events(day_obs, instrument, survey))
     butler_nocollection = dafButler.Butler(butler_alias)
     raw_exposures = butler_nocollection.query_dimension_records(

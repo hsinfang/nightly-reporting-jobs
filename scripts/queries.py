@@ -214,3 +214,19 @@ def get_timeout_from_loki(day_obs):
     ).drop(columns=["line"])
 
     return df
+
+
+def get_unsupported_surveys_from_loki(day_obs):
+    results = query_loki(
+        day_obs,
+        pod_name="prompt-proto-service",
+        search_string='|~ "Unsupported survey"',
+    )
+
+    pattern = re.compile(r".*RuntimeError: Unsupported survey: (?P<survey>[-\w]*)")
+    unsupported_surveys = set()
+    for line in results.splitlines():
+        m = pattern.match(line)
+        if m:
+            unsupported_surveys |= {m["survey"]}
+    return unsupported_surveys

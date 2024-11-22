@@ -7,6 +7,7 @@ from datetime import date, timedelta
 
 from queries import (
     get_next_visit_events,
+    get_unsupported_surveys_from_loki,
 )
 
 
@@ -50,6 +51,10 @@ if __name__ == "__main__":
         output_lines.append(
             f"{block}: {count_events} uncanceled nextVisit events with filters {filters}. {len(raw_exposures)} raw exposures."
         )
+
+    unsupported_surveys = get_unsupported_surveys_from_loki(day_obs_string)
+    if unsupported_surveys:
+        output_lines.append(f"Unknown survey: {', '.join(unsupported_surveys)}")
 
     output_message = (
         f":clamps: *{instrument} {day_obs.strftime('%A %Y-%m-%d')}* :clamps: \n"

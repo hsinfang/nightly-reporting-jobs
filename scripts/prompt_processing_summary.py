@@ -167,7 +167,7 @@ def make_summary_message(day_obs, instrument):
     )
 
     output_lines.append(
-        f"<https://usdf-rsp-dev.slac.stanford.edu/times-square/github/lsst-dm/vv-team-notebooks/PREOPS-prompt-error-msgs?day_obs={day_obs}&instrument={instrument}&ts_hide_code=1|Full Error Log>"
+        f"<https://usdf-rsp-dev.slac.stanford.edu/times-square/github/lsst-dm/vv-team-notebooks/PREOPS-prompt-error-msgs?day_obs={day_obs}&instrument={instrument}&ts_hide_code=1&survey={survey}|Full Error Log>"
     )
 
     raws = {r.id: r.group for r in raw_exposures}

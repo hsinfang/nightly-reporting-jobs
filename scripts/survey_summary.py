@@ -7,6 +7,7 @@ from datetime import date, timedelta
 
 from queries import (
     get_next_visit_events,
+    get_skipped_surveys_from_loki,
     get_unsupported_surveys_from_loki,
 )
 
@@ -55,6 +56,10 @@ if __name__ == "__main__":
     unsupported_surveys = get_unsupported_surveys_from_loki(day_obs_string)
     if unsupported_surveys:
         output_lines.append(f"Unknown survey: {', '.join(unsupported_surveys)}")
+
+    skipped_surveys = get_skipped_surveys_from_loki(day_obs_string)
+    if skipped_surveys:
+        output_lines.append(f"Skipped survey: {', '.join(skipped_surveys)}")
 
     output_message = (
         f":clamps: *{instrument} {day_obs.strftime('%A %Y-%m-%d')}* :clamps: \n"

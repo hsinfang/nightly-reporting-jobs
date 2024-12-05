@@ -216,6 +216,24 @@ def get_timeout_from_loki(day_obs):
     return df
 
 
+def get_skipped_surveys_from_loki(day_obs):
+    results = query_loki(
+        day_obs,
+        pod_name="prompt-proto-service",
+        search_string='|~ "Skipping visit: No pipeline configured for"',
+    )
+
+    pattern = re.compile(
+        r".*Skipping visit: No pipeline configured for.*survey=(?P<survey>[-\w]*),"
+    )
+    skipped_surveys = set()
+    for line in results.splitlines():
+        m = pattern.match(line)
+        if m:
+            skipped_surveys |= {m["survey"]}
+    return skipped_surveys
+
+
 def get_unsupported_surveys_from_loki(day_obs):
     results = query_loki(
         day_obs,

@@ -56,8 +56,17 @@ def make_summary_message(day_obs, instrument):
         explain=False,
     )
 
+    raw_counts = count_datasets(
+        butler_nocollection,
+        "raw",
+        f"{instrument}/raw/all",
+        instrument=instrument,
+        where=f"day_obs=day_obs_int AND exposure.science_program IN (survey)",
+        bind={"day_obs_int": day_obs_int, "survey": survey},
+    )
     output_lines.append(
-        f"Number for {survey}: {len(next_visits)} uncanceled nextVisit, {len(raw_exposures):d} raws"
+        f"Number for {survey}: {len(next_visits)} uncanceled nextVisit, "
+        f"{len(raw_exposures):d} raws ({raw_counts} images)"
     )
 
     if len(raw_exposures) == 0:
@@ -160,9 +169,18 @@ def make_summary_message(day_obs, instrument):
             )
         ]
     )
+    caveat = (
+        "(some of which might be false positive)"
+        if dia_counts - len(dia_visit_detector) > 0
+        and len(dia_visit_detector) < sfm_outputs - sfm_counts
+        else ""
+    )
     output_lines.append(
-        "- ApPipe: {:d} attempts, {:d} succeeded, {:d} failed.".format(
-            dia_counts, len(dia_visit_detector), dia_counts - len(dia_visit_detector)
+        "- ApPipe: {:d} attempts, {:d} succeeded, {:d} failed {:s}.".format(
+            dia_counts,
+            len(dia_visit_detector),
+            dia_counts - len(dia_visit_detector),
+            caveat,
         )
     )
 
@@ -205,6 +223,20 @@ def make_summary_message(day_obs, instrument):
     )
 
     return "\n".join(output_lines)
+
+
+def count_datasets(butler, dataset_type, collection, **kwargs):
+    try:
+        refs = butler.query_datasets(
+            dataset_type,
+            collections=collection,
+            find_first=False,
+            explain=False,
+            **kwargs,
+        )
+    except dafButler.MissingCollectionError:
+        return 0
+    return len(refs)
 
 
 if __name__ == "__main__":

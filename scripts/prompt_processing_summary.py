@@ -26,12 +26,10 @@ def make_summary_message(day_obs, instrument):
 
     day_obs_int = int(day_obs.replace("-", ""))
 
-
+    butler_alias = "embargo"
     if instrument == "LATISS":
-        butler_alias = "embargo_old"
         survey = "BLOCK-306"
     else:
-        butler_alias = "embargo"
         survey = "BLOCK-320"
     next_visits = asyncio.run(get_next_visit_events(day_obs, instrument, survey))
     butler_nocollection = dafButler.Butler(butler_alias)

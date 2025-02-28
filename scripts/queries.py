@@ -126,7 +126,7 @@ def query_loki(day_obs, pod_name, search_string):
         "--proxy-url=http://sdfproxy.sdf.slac.stanford.edu:3128",
         f'--from={start.strftime("%Y-%m-%dT%H:%M:%SZ")}',
         f'--to={end.strftime("%Y-%m-%dT%H:%M:%SZ")}',
-        f'{{app="vcluster--usdf-prompt-processing",pod=~"{pod_name}-.+"}} {search_string}',
+        f'{{namespace="vcluster--usdf-prompt-processing",pod=~"{pod_name}-.+"}} {search_string}',
     ]
 
     result = subprocess.run(command, capture_output=True, text=True)

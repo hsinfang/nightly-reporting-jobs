@@ -1,5 +1,5 @@
 ARG STACK_TAG="w_latest"
-FROM lsstsqre/centos:7-stack-lsst_distrib-${STACK_TAG}
+FROM ghcr.io/lsst/scipipe:al9-${STACK_TAG}
 USER root
 RUN <<EOT
   set -ex

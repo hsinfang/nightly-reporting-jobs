@@ -141,6 +141,8 @@ def query_loki(day_obs, pod_name, search_string):
 def get_status_code_from_loki(day_obs):
     """Get status return codes from next-visit-fan-out
 
+    This assumes a Knative platform of the Prompt service.
+
     Parameters
     ----------
     day_obs : `str`

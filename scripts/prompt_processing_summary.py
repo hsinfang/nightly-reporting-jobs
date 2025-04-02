@@ -8,7 +8,6 @@ import requests
 
 from queries import (
     get_next_visit_events,
-    get_status_code_from_loki,
     get_timeout_from_loki,
 )
 
@@ -192,31 +191,6 @@ def make_summary_message(day_obs, instrument):
     log_group_detector = {
         (raws[visit], detector) for visit, detector in log_visit_detector
     }
-    df = get_status_code_from_loki(day_obs)
-    df = df[(df["instrument"] == instrument) & (df["group"].isin(raws.values()))]
-
-    status_groups = df.set_index(["group", "detector"]).groupby("code").groups
-    for code in status_groups:
-        counts = len(status_groups[code])
-        output_lines.append(f"- {counts} counts have status code {code}.")
-
-        indices = status_groups[code].intersection(log_group_detector)
-        if not indices.empty and code != 200:
-            output_lines.append(f"  - {len(indices)} have outputs.")
-            counts -= len(indices)
-
-        match code:
-            case 500:
-                df = get_timeout_from_loki(day_obs)
-                df = df[
-                    (df["instrument"] == instrument) & (df["group"].isin(raws.values()))
-                ].set_index(["group", "detector"])
-                indices = status_groups[code].intersection(df.index)
-                if not indices.empty:
-                    output_lines.append(f"  - {len(indices)} timed out.")
-                    counts -= len(indices)
-                if counts > 0:
-                    output_lines.append(f"  - {counts} to be investigated.")
 
     output_lines.append(
         f"<https://usdf-rsp-dev.slac.stanford.edu/times-square/github/lsst-sqre/times-square-usdf/prompt-processing/groups?date={day_obs}&instrument={instrument}&survey={survey}&mode=DEBUG&ts_hide_code=1|Timing plots>"

@@ -110,7 +110,9 @@ def make_summary_message(day_obs, instrument):
         )
     )
 
-    b = dafButler.Butler(butler_alias, collections=[collection, f"{instrument}/defaults"])
+    b = dafButler.Butler(
+        butler_alias, collections=[collection, f"{instrument}/defaults"]
+    )
 
     log_visit_detector = set(
         [
@@ -248,7 +250,8 @@ if __name__ == "__main__":
     day_obs_string = day_obs.strftime("%Y-%m-%d")
     summary = make_summary_message(day_obs_string, instrument)
     output_message = (
-        f":clamps: *{instrument} {day_obs.strftime('%A %Y-%m-%d')}* :clamps: \n" + summary
+        f":clamps: *{instrument} {day_obs.strftime('%A %Y-%m-%d')}* :clamps: \n"
+        + summary
     )
 
     if not url:

@@ -57,7 +57,7 @@ def get_start_end(day_obs):
     return start, end
 
 
-async def get_next_visit_events(day_obs, sal_index, survey):
+async def get_next_visit_events(day_obs, instrument, survey=None):
     """Obtain uncanceled nextVisit events
 
     Parameters
@@ -65,12 +65,12 @@ async def get_next_visit_events(day_obs, sal_index, survey):
     day_obs : `str`
         day_obs in the format of YYYY-MM-DD.
 
-    sal_index : `int`
-        Index of Script SAL component. Use this as a proxy of the instrument.
-        TODO: just use instrument.
+    instrument : `str`
+        The instrument name.
 
-    survey : `str`
-        The imaging survey name of interest.
+    survey : `str`, optional
+        The imaging survey name of interest. If None, get all events regardless
+        of the survey.
     """
     client = EfdClient("usdf_efd")
 
@@ -85,13 +85,15 @@ async def get_next_visit_events(day_obs, sal_index, survey):
         _log.info(f"No events on {day_obs}")
         return pandas.DataFrame()
 
-    # Only select on-sky exposures from the selected survey
-    df = df.loc[
-        (df["coordinateSystem"] == 2)
-        & (df["salIndex"] == sal_index)
-        & (df["survey"] == survey)
-    ].set_index("groupId")
-    _log.info(f"There were {len(df)} {survey} nextVisit events on {day_obs}")
+    if survey:
+        # Only select on-sky exposures from the selected survey
+        df = df.loc[
+            (df["instrument"] == instrument) & (df["survey"] == survey)
+        ].set_index("groupId")
+        _log.info(f"There were {len(df)} {survey} nextVisit events on {day_obs}")
+    else:
+        df = df.loc[(df["instrument"] == instrument)].set_index("groupId")
+        _log.info(f"There were {len(df)} {instrument} nextVisit events on {day_obs}")
 
     # Ignore the explicitly canceled groups
     if not canceled.empty:
@@ -124,7 +126,7 @@ def query_loki(day_obs, pod_name, search_string):
         "--proxy-url=http://sdfproxy.sdf.slac.stanford.edu:3128",
         f'--from={start.strftime("%Y-%m-%dT%H:%M:%SZ")}',
         f'--to={end.strftime("%Y-%m-%dT%H:%M:%SZ")}',
-        f'{{app="vcluster--usdf-prompt-processing",pod=~"{pod_name}-.+"}} {search_string}',
+        f'{{namespace="vcluster--usdf-prompt-processing",pod=~"{pod_name}-.+"}} {search_string}',
     ]
 
     result = subprocess.run(command, capture_output=True, text=True)
@@ -138,6 +140,8 @@ def query_loki(day_obs, pod_name, search_string):
 
 def get_status_code_from_loki(day_obs):
     """Get status return codes from next-visit-fan-out
+
+    This assumes a Knative platform of the Prompt service.
 
     Parameters
     ----------
@@ -212,3 +216,37 @@ def get_timeout_from_loki(day_obs):
     ).drop(columns=["line"])
 
     return df
+
+
+def get_skipped_surveys_from_loki(day_obs):
+    results = query_loki(
+        day_obs,
+        pod_name="prompt-proto-service",
+        search_string='|~ "Skipping visit: No pipeline configured for"',
+    )
+
+    pattern = re.compile(
+        r".*Skipping visit: No pipeline configured for.*survey=(?P<survey>[-\w]*),"
+    )
+    skipped_surveys = set()
+    for line in results.splitlines():
+        m = pattern.match(line)
+        if m:
+            skipped_surveys |= {m["survey"]}
+    return skipped_surveys
+
+
+def get_unsupported_surveys_from_loki(day_obs):
+    results = query_loki(
+        day_obs,
+        pod_name="prompt-proto-service",
+        search_string='|~ "Unsupported survey"',
+    )
+
+    pattern = re.compile(r".*RuntimeError: Unsupported survey: (?P<survey>[-\w]*)")
+    unsupported_surveys = set()
+    for line in results.splitlines():
+        m = pattern.match(line)
+        if m:
+            unsupported_surveys |= {m["survey"]}
+    return unsupported_surveys

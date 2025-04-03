@@ -13,5 +13,5 @@ COPY scripts scripts/
 RUN <<EOT
   set -ex
   source /opt/lsst/software/stack/loadLSST.bash
-  pip install lsst-efd-client
+  conda install -c conda-forge lsst-efd-client
 EOT

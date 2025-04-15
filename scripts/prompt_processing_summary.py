@@ -28,8 +28,10 @@ def make_summary_message(day_obs, instrument):
     butler_alias = "embargo"
     if instrument == "LATISS":
         survey = "BLOCK-306"
-    else:
+    elif instrument == "LSSTComCam":
         survey = "BLOCK-320"
+    else:
+        survey = "BLOCK-365"
     next_visits = asyncio.run(get_next_visit_events(day_obs, instrument, survey))
     butler_nocollection = dafButler.Butler(butler_alias)
     raw_exposures = butler_nocollection.query_dimension_records(
@@ -169,7 +171,7 @@ def make_summary_message(day_obs, instrument):
         ]
     )
     caveat = (
-        "(some of which might be false positive)"
+        "(some of which can be no-work-found)"
         if dia_counts - len(dia_visit_detector) > 0
         and len(dia_visit_detector) < sfm_outputs - sfm_counts
         else ""
@@ -216,7 +218,7 @@ def count_datasets(butler, dataset_type, collection, **kwargs):
 if __name__ == "__main__":
     instrument = os.getenv("INSTRUMENT")
     if not instrument:
-        instrument = "LATISS"
+        instrument = "LSSTCam"
     webhook = "SLACK_WEBHOOK_URL_" + instrument.upper()
     url = os.getenv(webhook)
 

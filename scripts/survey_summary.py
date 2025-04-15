@@ -13,7 +13,7 @@ from queries import (
 
 
 if __name__ == "__main__":
-    instrument = "LSSTComCam"
+    instrument = "LSSTCam"
     webhook = "SLACK_WEBHOOK_URL_" + instrument.upper()
     url = os.getenv(webhook)
 

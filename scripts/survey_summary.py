@@ -21,7 +21,7 @@ if __name__ == "__main__":
     day_obs_string = day_obs.strftime("%Y-%m-%d")
     day_obs_int = int(day_obs_string.replace("-", ""))
 
-    df = asyncio.run(get_next_visit_events(day_obs_string, instrument))
+    df, canceled = asyncio.run(get_next_visit_events(day_obs_string, instrument))
     df = df[df["survey"] != ""]
 
     output_lines = []
@@ -39,6 +39,13 @@ if __name__ == "__main__":
     )
 
     for block in df["survey"].unique():
+        canceled_list = (
+            df[df["survey"] == block]
+            .index.intersection(canceled.set_index("groupId").index)
+            .tolist()
+        )
+        count_canceled = len(canceled_list)
+        df = df.drop(canceled_list)
         count_events = len(df[df["survey"] == block])
         filters = df[df["survey"] == block]["filters"].unique()
 
@@ -50,7 +57,7 @@ if __name__ == "__main__":
             explain=False,
         )
         output_lines.append(
-            f"{block}: {count_events} uncanceled nextVisit events with filters {filters}. {len(raw_exposures)} raw exposures."
+            f"{block}: {count_events} uncanceled nextVisit events ({count_canceled} canceled) with filters {filters}. {len(raw_exposures)} raw exposures."
         )
 
     unsupported_surveys = get_unsupported_surveys_from_loki(day_obs_string)

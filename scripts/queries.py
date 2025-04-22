@@ -58,7 +58,7 @@ def get_start_end(day_obs):
 
 
 async def get_next_visit_events(day_obs, instrument, survey=None):
-    """Obtain uncanceled nextVisit events
+    """Obtain nextVisit events
 
     Parameters
     ----------
@@ -71,6 +71,13 @@ async def get_next_visit_events(day_obs, instrument, survey=None):
     survey : `str`, optional
         The imaging survey name of interest. If None, get all events regardless
         of the survey.
+
+    Returns
+    -------
+    df : `pandas.DataFrame`
+        All nextVisit events matching the criteria.
+    canceled : `pandas.DataFrame`
+        Canceled nextVisit events.
     """
     client = EfdClient("usdf_efd")
 
@@ -95,14 +102,7 @@ async def get_next_visit_events(day_obs, instrument, survey=None):
         df = df.loc[(df["instrument"] == instrument)].set_index("groupId")
         _log.info(f"There were {len(df)} {instrument} nextVisit events on {day_obs}")
 
-    # Ignore the explicitly canceled groups
-    if not canceled.empty:
-        canceled = df.index.intersection(canceled.set_index("groupId").index).tolist()
-        if canceled:
-            _log.info(f"{len(canceled)} events were canceled {canceled}")
-            df = df.drop(canceled)
-
-    return df
+    return df, canceled
 
 
 def query_loki(day_obs, pod_name, search_string):

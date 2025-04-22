@@ -32,7 +32,15 @@ def make_summary_message(day_obs, instrument):
         survey = "BLOCK-320"
     else:
         survey = "BLOCK-365"
-    next_visits = asyncio.run(get_next_visit_events(day_obs, instrument, survey))
+    next_visits, canceled_visits = asyncio.run(
+        get_next_visit_events(day_obs, instrument, survey)
+    )
+    total_visit_count = len(next_visits)
+    canceled_list = next_visits.index.intersection(
+        canceled_visits.set_index("groupId").index
+    ).tolist()
+    if canceled_list:
+        next_visits = next_visits.drop(canceled_list)
     butler_nocollection = dafButler.Butler(butler_alias)
     raw_exposures = butler_nocollection.query_dimension_records(
         "exposure",
@@ -64,7 +72,7 @@ def make_summary_message(day_obs, instrument):
         bind={"day_obs_int": day_obs_int, "survey": survey},
     )
     output_lines.append(
-        f"Number for {survey}: {len(next_visits)} uncanceled nextVisit, "
+        f"Number for {survey}: {len(next_visits)}/{total_visit_count} nextVisit, "
         f"{len(raw_exposures):d} raws ({raw_counts} images)"
     )
 

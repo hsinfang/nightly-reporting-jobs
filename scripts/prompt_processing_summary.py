@@ -197,6 +197,13 @@ def make_summary_message(day_obs, instrument):
         f"<https://usdf-rsp.slac.stanford.edu/times-square/github/lsst-dm/vv-team-notebooks/PREOPS-prompt-error-msgs?day_obs={day_obs}&instrument={instrument}&ts_hide_code=1&survey={survey}|Full Error Log>"
     )
 
+    output_lines.extend(
+        count_recurrent_errors(
+            b,
+            f"visit.science_program='{survey}'AND instrument='{instrument}'",
+        )
+    )
+
     raws = {r.id: r.group for r in raw_exposures}
     log_group_detector = {
         (raws[visit], detector) for visit, detector in log_visit_detector
@@ -221,6 +228,52 @@ def count_datasets(butler, dataset_type, collection, **kwargs):
     except dafButler.MissingCollectionError:
         return 0
     return len(refs)
+
+
+def count_recurrent_errors(butler, where):
+    recurrent_errors = [
+        "Exception BadAstrometryFit: Poor quality astrometric fit",
+        "Exception IndexError: arrays used as indices must be of integer (or boolean) type",
+        "Exception MatcherFailure: No matches found",
+        "Exception MatcherFailure: No matches to use for photocal",
+        "Exception MatcherFailure: Not enough catalog objects",
+        "Exception MatcherFailure: Not enough refcat objects",
+        "Exception MeasureApCorrError: Unable to measure aperture correction",
+        "Exception NonfinitePsfShapeError: Failed to determine PSF",
+        "Exception NoPsfStarsToStarsMatchError",
+        "Exception NormalizedCalibrationFluxError",
+        "Exception ObjectSizeNoGoodSourcesError",
+        "Exception ObjectSizeNoSourcesError",
+        "Exception PsfexNoGoodStarsError",
+        "Exception PsfexTooFewGoodStarsError",
+        "RuntimeError: Cannot compute PSF matching kernel: too few sources selected",
+        "RuntimeError: No good PSF candidates to pass to PSFEx",
+        "RuntimeError: No objects passed our cuts for consideration as psf stars",
+        "Unable to determine kernel sum; 0 candidates",
+    ]
+    refs = butler.query_datasets(
+        "calibrateImage_log",
+        where=where,
+    )
+    visit_errors = []
+    for ref in refs:
+        log_messages = butler.get(ref)
+        errors = [msg for msg in log_messages if msg.levelno > 30]
+        visit_errors.extend(errors)
+    lines = []
+    total_count = 0
+    for err in recurrent_errors:
+        count = _count_error(err, visit_errors)
+        if count:
+            lines.append(f"- {count} {err}")
+            total_count += count
+    if lines:
+        lines.insert(0, f"Among calibrateImage errors, {total_count} were")
+    return lines
+
+
+def _count_error(errMsg, visit_errors):
+    return len([_.message for _ in visit_errors if errMsg in _.message])
 
 
 if __name__ == "__main__":

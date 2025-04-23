@@ -68,7 +68,7 @@ def make_summary_message(day_obs, instrument):
         "raw",
         f"{instrument}/raw/all",
         instrument=instrument,
-        where=f"day_obs=day_obs_int AND exposure.science_program IN (survey)",
+        where=f"day_obs=day_obs_int AND exposure.science_program IN (survey) AND detector < 189",
         bind={"day_obs_int": day_obs_int, "survey": survey},
     )
     output_lines.append(

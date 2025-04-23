@@ -141,7 +141,7 @@ def make_summary_message(day_obs, instrument):
 
     isr_outputs = len(
         b.query_datasets(
-            "postISRCCD",
+            "post_isr_image",
             where=f"exposure.science_program IN (survey)",
             bind={"survey": survey},
             explain=False,

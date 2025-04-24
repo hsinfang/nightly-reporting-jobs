@@ -133,6 +133,14 @@ def make_summary_message(day_obs, instrument):
             )
         ]
     )
+    # LSSTCam number of active detector is hard-coded here.
+    if instrument == "LSSTCam":
+        off_detector = 3
+        expected = len(raw_exposures) * (189 - off_detector)
+        missed = expected - len(log_visit_detector)
+        output_lines.append(
+            f"Number of expected processing: {expected:d}. Missed {missed}"
+        )
     output_lines.append(
         "Number of main pipeline runs: {:d} total, {:d} Isr, {:d} SingleFrame, {:d} ApPipe".format(
             len(log_visit_detector), isr_counts, sfm_counts, dia_counts

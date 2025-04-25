@@ -47,6 +47,7 @@ def make_summary_message(day_obs, instrument):
         instrument=instrument,
         where=f"day_obs={day_obs_int} AND exposure.can_see_sky AND exposure.observation_type='science'",
         explain=False,
+        limit=None,
     )
 
     # Do not send message if there are no on-sky exposures.
@@ -61,6 +62,7 @@ def make_summary_message(day_obs, instrument):
         where=f"day_obs=day_obs_int AND exposure.science_program IN (survey)",
         bind={"day_obs_int": day_obs_int, "survey": survey},
         explain=False,
+        limit=None,
     )
 
     raw_counts = count_datasets(
@@ -96,6 +98,7 @@ def make_summary_message(day_obs, instrument):
             bind={"survey": survey},
             find_first=False,
             explain=False,
+            limit=None,
         )
     )
     sfm_counts = len(
@@ -106,6 +109,7 @@ def make_summary_message(day_obs, instrument):
             bind={"survey": survey},
             find_first=False,
             explain=False,
+            limit=None,
         )
     )
     dia_counts = len(
@@ -116,6 +120,7 @@ def make_summary_message(day_obs, instrument):
             bind={"survey": survey},
             find_first=False,
             explain=False,
+            limit=None,
         )
     )
 
@@ -130,6 +135,7 @@ def make_summary_message(day_obs, instrument):
                 "isr_log",
                 where=f"exposure.science_program IN (survey)",
                 bind={"survey": survey},
+                limit=None,
             )
         ]
     )
@@ -153,6 +159,7 @@ def make_summary_message(day_obs, instrument):
             where=f"exposure.science_program IN (survey)",
             bind={"survey": survey},
             explain=False,
+            limit=None,
         )
     )
     output_lines.append(
@@ -167,6 +174,7 @@ def make_summary_message(day_obs, instrument):
             where=f"exposure.science_program IN (survey)",
             bind={"survey": survey},
             explain=False,
+            limit=None,
         )
     )
     output_lines.append(
@@ -183,6 +191,7 @@ def make_summary_message(day_obs, instrument):
                 where=f"exposure.science_program IN (survey)",
                 bind={"survey": survey},
                 explain=False,
+                limit=None,
             )
         ]
     )
@@ -231,6 +240,7 @@ def count_datasets(butler, dataset_type, collection, **kwargs):
             collections=collection,
             find_first=False,
             explain=False,
+            limit=None,
             **kwargs,
         )
     except dafButler.MissingCollectionError:
@@ -262,6 +272,7 @@ def count_recurrent_errors(butler, where):
     refs = butler.query_datasets(
         "calibrateImage_log",
         where=where,
+        limit=None,
     )
     visit_errors = []
     for ref in refs:

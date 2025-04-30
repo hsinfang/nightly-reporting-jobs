@@ -28,15 +28,26 @@ def make_summary_message(day_obs, instrument):
     butler_alias = "embargo"
     if instrument == "LATISS":
         survey = "BLOCK-306"
-    else:
+    elif instrument == "LSSTComCam":
         survey = "BLOCK-320"
-    next_visits = asyncio.run(get_next_visit_events(day_obs, instrument, survey))
+    else:
+        survey = "BLOCK-365"
+    next_visits, canceled_visits = asyncio.run(
+        get_next_visit_events(day_obs, instrument, survey)
+    )
+    total_visit_count = len(next_visits)
+    canceled_list = next_visits.index.intersection(
+        canceled_visits.set_index("groupId").index
+    ).tolist()
+    if canceled_list:
+        next_visits = next_visits.drop(canceled_list)
     butler_nocollection = dafButler.Butler(butler_alias)
     raw_exposures = butler_nocollection.query_dimension_records(
         "exposure",
         instrument=instrument,
         where=f"day_obs={day_obs_int} AND exposure.can_see_sky AND exposure.observation_type='science'",
         explain=False,
+        limit=None,
     )
 
     # Do not send message if there are no on-sky exposures.
@@ -51,6 +62,7 @@ def make_summary_message(day_obs, instrument):
         where=f"day_obs=day_obs_int AND exposure.science_program IN (survey)",
         bind={"day_obs_int": day_obs_int, "survey": survey},
         explain=False,
+        limit=None,
     )
 
     raw_counts = count_datasets(
@@ -58,11 +70,11 @@ def make_summary_message(day_obs, instrument):
         "raw",
         f"{instrument}/raw/all",
         instrument=instrument,
-        where=f"day_obs=day_obs_int AND exposure.science_program IN (survey)",
+        where=f"day_obs=day_obs_int AND exposure.science_program IN (survey) AND detector < 189",
         bind={"day_obs_int": day_obs_int, "survey": survey},
     )
     output_lines.append(
-        f"Number for {survey}: {len(next_visits)} uncanceled nextVisit, "
+        f"Number for {survey}: {len(next_visits)}/{total_visit_count} nextVisit, "
         f"{len(raw_exposures):d} raws ({raw_counts} images)"
     )
 
@@ -86,6 +98,7 @@ def make_summary_message(day_obs, instrument):
             bind={"survey": survey},
             find_first=False,
             explain=False,
+            limit=None,
         )
     )
     sfm_counts = len(
@@ -96,6 +109,7 @@ def make_summary_message(day_obs, instrument):
             bind={"survey": survey},
             find_first=False,
             explain=False,
+            limit=None,
         )
     )
     dia_counts = len(
@@ -106,6 +120,7 @@ def make_summary_message(day_obs, instrument):
             bind={"survey": survey},
             find_first=False,
             explain=False,
+            limit=None,
         )
     )
 
@@ -120,9 +135,18 @@ def make_summary_message(day_obs, instrument):
                 "isr_log",
                 where=f"exposure.science_program IN (survey)",
                 bind={"survey": survey},
+                limit=None,
             )
         ]
     )
+    # LSSTCam number of active detector is hard-coded here.
+    if instrument == "LSSTCam":
+        off_detector = 3
+        expected = len(raw_exposures) * (189 - off_detector)
+        missed = expected - len(log_visit_detector)
+        output_lines.append(
+            f"Number of expected processing: {expected:d}. Missed {missed}"
+        )
     output_lines.append(
         "Number of main pipeline runs: {:d} total, {:d} Isr, {:d} SingleFrame, {:d} ApPipe".format(
             len(log_visit_detector), isr_counts, sfm_counts, dia_counts
@@ -131,10 +155,11 @@ def make_summary_message(day_obs, instrument):
 
     isr_outputs = len(
         b.query_datasets(
-            "postISRCCD",
+            "post_isr_image",
             where=f"exposure.science_program IN (survey)",
             bind={"survey": survey},
             explain=False,
+            limit=None,
         )
     )
     output_lines.append(
@@ -149,6 +174,7 @@ def make_summary_message(day_obs, instrument):
             where=f"exposure.science_program IN (survey)",
             bind={"survey": survey},
             explain=False,
+            limit=None,
         )
     )
     output_lines.append(
@@ -165,11 +191,12 @@ def make_summary_message(day_obs, instrument):
                 where=f"exposure.science_program IN (survey)",
                 bind={"survey": survey},
                 explain=False,
+                limit=None,
             )
         ]
     )
     caveat = (
-        "(some of which might be false positive)"
+        "(some of which can be no-work-found)"
         if dia_counts - len(dia_visit_detector) > 0
         and len(dia_visit_detector) < sfm_outputs - sfm_counts
         else ""
@@ -184,7 +211,14 @@ def make_summary_message(day_obs, instrument):
     )
 
     output_lines.append(
-        f"<https://usdf-rsp-dev.slac.stanford.edu/times-square/github/lsst-dm/vv-team-notebooks/PREOPS-prompt-error-msgs?day_obs={day_obs}&instrument={instrument}&ts_hide_code=1&survey={survey}|Full Error Log>"
+        f"<https://usdf-rsp.slac.stanford.edu/times-square/github/lsst-dm/vv-team-notebooks/PREOPS-prompt-error-msgs?day_obs={day_obs}&instrument={instrument}&ts_hide_code=1&survey={survey}|Full Error Log>"
+    )
+
+    output_lines.extend(
+        count_recurrent_errors(
+            b,
+            f"visit.science_program='{survey}'AND instrument='{instrument}'",
+        )
     )
 
     raws = {r.id: r.group for r in raw_exposures}
@@ -193,7 +227,7 @@ def make_summary_message(day_obs, instrument):
     }
 
     output_lines.append(
-        f"<https://usdf-rsp-dev.slac.stanford.edu/times-square/github/lsst-sqre/times-square-usdf/prompt-processing/groups?date={day_obs}&instrument={instrument}&survey={survey}&mode=DEBUG&ts_hide_code=1|Timing plots>"
+        f"<https://usdf-rsp.slac.stanford.edu/times-square/github/lsst-sqre/times-square-usdf/prompt-processing/groups?date={day_obs}&instrument={instrument}&survey={survey}&mode=DEBUG&ts_hide_code=1|Timing plots>"
     )
 
     return "\n".join(output_lines)
@@ -206,6 +240,7 @@ def count_datasets(butler, dataset_type, collection, **kwargs):
             collections=collection,
             find_first=False,
             explain=False,
+            limit=None,
             **kwargs,
         )
     except dafButler.MissingCollectionError:
@@ -213,10 +248,57 @@ def count_datasets(butler, dataset_type, collection, **kwargs):
     return len(refs)
 
 
+def count_recurrent_errors(butler, where):
+    recurrent_errors = [
+        "Exception BadAstrometryFit: Poor quality astrometric fit",
+        "Exception IndexError: arrays used as indices must be of integer (or boolean) type",
+        "Exception MatcherFailure: No matches found",
+        "Exception MatcherFailure: No matches to use for photocal",
+        "Exception MatcherFailure: Not enough catalog objects",
+        "Exception MatcherFailure: Not enough refcat objects",
+        "Exception MeasureApCorrError: Unable to measure aperture correction",
+        "Exception NonfinitePsfShapeError: Failed to determine PSF",
+        "Exception NoPsfStarsToStarsMatchError",
+        "Exception NormalizedCalibrationFluxError",
+        "Exception ObjectSizeNoGoodSourcesError",
+        "Exception ObjectSizeNoSourcesError",
+        "Exception PsfexNoGoodStarsError",
+        "Exception PsfexTooFewGoodStarsError",
+        "RuntimeError: Cannot compute PSF matching kernel: too few sources selected",
+        "RuntimeError: No good PSF candidates to pass to PSFEx",
+        "RuntimeError: No objects passed our cuts for consideration as psf stars",
+        "Unable to determine kernel sum; 0 candidates",
+    ]
+    refs = butler.query_datasets(
+        "calibrateImage_log",
+        where=where,
+        limit=None,
+    )
+    visit_errors = []
+    for ref in refs:
+        log_messages = butler.get(ref)
+        errors = [msg for msg in log_messages if msg.levelno > 30]
+        visit_errors.extend(errors)
+    lines = []
+    total_count = 0
+    for err in recurrent_errors:
+        count = _count_error(err, visit_errors)
+        if count:
+            lines.append(f"- {count} {err}")
+            total_count += count
+    if lines:
+        lines.insert(0, f"Among calibrateImage errors, {total_count} were")
+    return lines
+
+
+def _count_error(errMsg, visit_errors):
+    return len([_.message for _ in visit_errors if errMsg in _.message])
+
+
 if __name__ == "__main__":
     instrument = os.getenv("INSTRUMENT")
     if not instrument:
-        instrument = "LATISS"
+        instrument = "LSSTCam"
     webhook = "SLACK_WEBHOOK_URL_" + instrument.upper()
     url = os.getenv(webhook)
 

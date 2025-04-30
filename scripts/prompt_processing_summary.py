@@ -141,7 +141,7 @@ def make_summary_message(day_obs, instrument):
     )
     # LSSTCam number of active detector is hard-coded here.
     if instrument == "LSSTCam":
-        off_detector = 3
+        off_detector = 18
         expected = len(raw_exposures) * (189 - off_detector)
         missed = expected - len(log_visit_detector)
         output_lines.append(

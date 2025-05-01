@@ -8,6 +8,7 @@ import requests
 
 from queries import (
     get_next_visit_events,
+    get_no_work_count_from_loki,
     get_timeout_from_loki,
 )
 
@@ -195,18 +196,18 @@ def make_summary_message(day_obs, instrument):
             )
         ]
     )
-    caveat = (
-        "(some of which can be no-work-found)"
-        if dia_counts - len(dia_visit_detector) > 0
-        and len(dia_visit_detector) < sfm_outputs - sfm_counts
-        else ""
+    count_no_work1, count_no_work2 = get_no_work_count_from_loki(
+        day_obs, "associateApdb"
     )
+    count_no_apdb = count_no_work1 + count_no_work2
     output_lines.append(
-        "- ApPipe: {:d} attempts, {:d} succeeded, {:d} failed {:s}.".format(
+        "- ApPipe: {:d} attempts, {:d}+{:d}+{:d}={:d} succeeded, {:d} failed.".format(
             dia_counts,
             len(dia_visit_detector),
-            dia_counts - len(dia_visit_detector),
-            caveat,
+            count_no_work1,
+            count_no_work2,
+            len(dia_visit_detector) + count_no_apdb,
+            dia_counts - len(dia_visit_detector) - count_no_apdb,
         )
     )
 

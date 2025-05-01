@@ -21,6 +21,7 @@
 
 __all__ = [
     "get_next_visit_events",
+    "get_no_work_count_from_loki",
     "get_status_code_from_loki",
     "get_timeout_from_loki",
 ]
@@ -216,6 +217,22 @@ def get_timeout_from_loki(day_obs):
     ).drop(columns=["line"])
 
     return df
+
+
+def get_no_work_count_from_loki(day_obs, task_name):
+    results = query_loki(
+        day_obs,
+        pod_name="prompt-keda",
+        search_string=f'|~ "Nothing to do for task \'{task_name}"',
+    )
+    count1 = len(results.splitlines())
+    results = query_loki(
+        day_obs,
+        container_name=instrument.lower(),
+        search_string=f'|= "Dropping task {task_name} because no quanta remain (1 had no work to do)"',
+    )
+    count2 = len(results.splitlines())
+    return count1, count2
 
 
 def get_skipped_surveys_from_loki(day_obs):

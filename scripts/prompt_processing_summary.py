@@ -148,6 +148,15 @@ def make_summary_message(day_obs, instrument):
         output_lines.append(
             f"Number of expected processing: {expected:d}. Missed {missed}"
         )
+
+    groups = [r.group for r in raw_exposures]
+    df = get_timeout_from_loki(day_obs)
+    df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
+        ["group", "detector"]
+    )
+    if not df.empty:
+        output_lines.append(f"- {len(df)} unexpected timeout.")
+
     output_lines.append(
         "Number of main pipeline runs: {:d} total, {:d} Isr, {:d} SingleFrame, {:d} ApPipe".format(
             len(log_visit_detector), isr_counts, sfm_counts, dia_counts

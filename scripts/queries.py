@@ -193,7 +193,7 @@ def get_timeout_from_loki(day_obs):
     """
     results = query_loki(
         day_obs,
-        pod_name="prompt-proto-service",
+        pod_name="prompt-keda",
         search_string='|~ "Timed out waiting for image after receiving exposures"',
     )
 
@@ -221,7 +221,7 @@ def get_timeout_from_loki(day_obs):
 def get_skipped_surveys_from_loki(day_obs):
     results = query_loki(
         day_obs,
-        pod_name="prompt-proto-service",
+        pod_name="prompt-keda",
         search_string='|~ "Skipping visit: No pipeline configured for"',
     )
 
@@ -239,7 +239,7 @@ def get_skipped_surveys_from_loki(day_obs):
 def get_unsupported_surveys_from_loki(day_obs):
     results = query_loki(
         day_obs,
-        pod_name="prompt-proto-service",
+        pod_name="prompt-keda",
         search_string='|~ "Unsupported survey"',
     )
 

@@ -260,9 +260,12 @@ def count_datasets(butler, dataset_type, collection, **kwargs):
 
 def count_recurrent_errors(butler, where):
     recurrent_errors = [
+        "Exception AllCentroidsFlaggedError",
         "Exception BadAstrometryFit: Poor quality astrometric fit",
         "Exception IndexError: arrays used as indices must be of integer (or boolean) type",
+        "Exception MatcherError",
         "Exception MatcherFailure: No matches found",
+        "Exception MatcherFailure: No matched reference stars with valid fluxes",
         "Exception MatcherFailure: No matches to use for photocal",
         "Exception MatcherFailure: Not enough catalog objects",
         "Exception MatcherFailure: Not enough refcat objects",

@@ -228,8 +228,17 @@ def make_summary_message(day_obs, instrument):
         count_recurrent_errors(
             b,
             f"visit.science_program='{survey}'AND instrument='{instrument}'",
+            "calibrateImage",
         )
     )
+    if dia_counts > 0 and (dia_counts - len(dia_visit_detector) - count_no_apdb) > 0:
+        output_lines.extend(
+            count_recurrent_errors(
+                b,
+                f"visit.science_program='{survey}'AND instrument='{instrument}'",
+                "subtractImages",
+            )
+        )
 
     raws = {r.id: r.group for r in raw_exposures}
     log_group_detector = {
@@ -258,8 +267,8 @@ def count_datasets(butler, dataset_type, collection, **kwargs):
     return len(refs)
 
 
-def count_recurrent_errors(butler, where):
-    recurrent_errors = [
+RECURRENT_ERRORS_BY_TASK = {
+    "calibrateImage": [
         "Exception AllCentroidsFlaggedError",
         "Exception BadAstrometryFit: Poor quality astrometric fit",
         "Exception IndexError: arrays used as indices must be of integer (or boolean) type",
@@ -277,14 +286,24 @@ def count_recurrent_errors(butler, where):
         "Exception ObjectSizeNoSourcesError",
         "Exception PsfexNoGoodStarsError",
         "Exception PsfexTooFewGoodStarsError",
+    ],
+    "subtractImages": [
         "RuntimeError: Cannot compute PSF matching kernel: too few sources selected",
         "RuntimeError: No good PSF candidates to pass to PSFEx",
         "RuntimeError: No objects passed our cuts for consideration as psf stars",
         "Unable to determine kernel sum; 0 candidates",
-    ]
+    ],
+}
+
+
+def count_recurrent_errors(butler, where, task):
+    # with open("error_config.yaml") as f:
+    #    RECURRENT_ERRORS_BY_TASK = yaml.safe_load(f)
+    recurrent_errors = RECURRENT_ERRORS_BY_TASK.get(task, [])
     refs = butler.query_datasets(
-        "calibrateImage_log",
+        f"{task}_log",
         where=where,
+        explain=False,
         limit=None,
     )
     visit_errors = []
@@ -300,7 +319,7 @@ def count_recurrent_errors(butler, where):
             lines.append(f"- {count} {err}")
             total_count += count
     if lines:
-        lines.insert(0, f"Among calibrateImage errors, {total_count} were")
+        lines.insert(0, f"Among {task} errors, {total_count} were")
     return lines
 
 

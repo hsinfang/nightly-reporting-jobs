@@ -106,7 +106,7 @@ async def get_next_visit_events(day_obs, instrument, survey=None):
     return df, canceled
 
 
-def query_loki(day_obs, pod_name, search_string):
+def query_loki(day_obs, container_name, search_string):
     """Query Grafana Loki for log records.
 
     Parameters
@@ -123,17 +123,17 @@ def query_loki(day_obs, pod_name, search_string):
         "--addr=http://sdfloki.slac.stanford.edu:80",
         "--timezone=UTC",
         "-q",
-        "--limit=10000",
+        "--limit=200000",
         "--proxy-url=http://sdfproxy.sdf.slac.stanford.edu:3128",
         f'--from={start.strftime("%Y-%m-%dT%H:%M:%SZ")}',
         f'--to={end.strftime("%Y-%m-%dT%H:%M:%SZ")}',
-        f'{{namespace="vcluster--usdf-prompt-processing",pod=~"{pod_name}-.+"}} {search_string}',
+        f'{{namespace="vcluster--usdf-prompt-processing",container="{container_name}"}} {search_string}',
     ]
 
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:
         _log.error("Loki query failed")
-        _log.error(results.stderr)
+        _log.error(result.stderr)
         return
 
     return result.stdout
@@ -155,7 +155,7 @@ def get_status_code_from_loki(day_obs):
     """
     results = query_loki(
         day_obs,
-        pod_name="next-visit-fan-out",
+        container_name="next-visit-fan-out",
         search_string='|~ "status code" |~ "for initial request"',
     )
     pattern = re.compile(
@@ -180,7 +180,7 @@ def get_status_code_from_loki(day_obs):
     return df
 
 
-def get_timeout_from_loki(day_obs):
+def get_timeout_from_loki(day_obs, instrument="LSSTCam"):
     """Get the IDs of the timed out cases.
 
     Parameters
@@ -194,8 +194,8 @@ def get_timeout_from_loki(day_obs):
     """
     results = query_loki(
         day_obs,
-        pod_name="prompt-keda",
-        search_string='|~ "Timed out waiting for image after receiving exposures"',
+        container_name=instrument.lower(),
+        search_string='|= "Processing failed" |= "Timed out waiting for image" ',
     )
 
     if not results:
@@ -219,11 +219,11 @@ def get_timeout_from_loki(day_obs):
     return df
 
 
-def get_no_work_count_from_loki(day_obs, task_name):
+def get_no_work_count_from_loki(day_obs, task_name, instrument="LSSTCam"):
     results = query_loki(
         day_obs,
-        pod_name="prompt-keda",
-        search_string=f'|~ "Nothing to do for task \'{task_name}"',
+        container_name=instrument.lower(),
+        search_string=f'|= "Nothing to do for task \'{task_name}"',
     )
     count1 = len(results.splitlines())
     results = query_loki(
@@ -235,11 +235,11 @@ def get_no_work_count_from_loki(day_obs, task_name):
     return count1, count2
 
 
-def get_skipped_surveys_from_loki(day_obs):
+def get_skipped_surveys_from_loki(day_obs, instrument="LSSTCam"):
     results = query_loki(
         day_obs,
-        pod_name="prompt-keda",
-        search_string='|~ "Skipping visit: No pipeline configured for"',
+        container_name=instrument.lower(),
+        search_string='|= "Skipping visit: No pipeline configured for"',
     )
 
     pattern = re.compile(
@@ -253,11 +253,11 @@ def get_skipped_surveys_from_loki(day_obs):
     return skipped_surveys
 
 
-def get_unsupported_surveys_from_loki(day_obs):
+def get_unsupported_surveys_from_loki(day_obs, instrument="LSSTCam"):
     results = query_loki(
         day_obs,
-        pod_name="prompt-keda",
-        search_string='|~ "Unsupported survey"',
+        container_name=instrument.lower(),
+        search_string='|= "Unsupported survey"',
     )
 
     pattern = re.compile(r".*RuntimeError: Unsupported survey: (?P<survey>[-\w]*)")

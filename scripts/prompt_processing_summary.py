@@ -9,7 +9,7 @@ import requests
 from queries import (
     get_next_visit_events,
     get_no_work_count_from_loki,
-    get_timeout_from_loki,
+    get_df_from_loki,
 )
 
 
@@ -143,19 +143,60 @@ def make_summary_message(day_obs, instrument):
     # LSSTCam number of active detector is hard-coded here.
     if instrument == "LSSTCam":
         off_detector = 18
+        df = get_df_from_loki(
+            day_obs,
+            instrument=instrument,
+            match_string='|= "Preprocessing pipeline successfully run."',
+            match_string2="",
+        )
+        output_lines.append(
+            f"Number of expected preprocessing: {total_visit_count} raws*(189-{off_detector} detectors)={total_visit_count * (189-off_detector)}. Successful: {len(df)}. "
+        )
         expected = len(raw_exposures) * (189 - off_detector)
         missed = expected - len(log_visit_detector)
         output_lines.append(
-            f"Number of expected processing: {expected:d}. Missed {missed}"
+            f"Number of expected processing: {len(raw_exposures)} raws*(189-{off_detector} detectors)={expected:d}. Missed {missed}"
         )
 
     groups = [r.group for r in raw_exposures]
-    df = get_timeout_from_loki(day_obs)
+    df = get_df_from_loki(
+        day_obs, instrument=instrument, match_string='|= "Timed out waiting for image"'
+    )
     df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
         ["group", "detector"]
     )
     if not df.empty:
         output_lines.append(f"- {len(df)} unexpected timeout.")
+    df = get_df_from_loki(
+        day_obs,
+        instrument=instrument,
+        match_string='|= "MiddlewareInterface(_get_central_butler()"',
+    )
+    df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
+        ["group", "detector"]
+    )
+    if not df.empty:
+        output_lines.append(
+            f"- {len(df)} failure in instantiating MWI central butler connection."
+        )
+    df = get_df_from_loki(
+        day_obs, instrument=instrument, match_string='|= "prep_butler"'
+    )
+    df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
+        ["group", "detector"]
+    )
+    if not df.empty:
+        output_lines.append(f"- {len(df)} failure in prep_butler.")
+    df = get_df_from_loki(
+        day_obs,
+        instrument=instrument,
+        match_string='|= "RuntimeError: Unable to retrieve JSON sidecar"',
+    )
+    df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
+        ["group", "detector"]
+    )
+    if not df.empty:
+        output_lines.append(f"- {len(df)} failure in retrieving json sidecar.")
 
     output_lines.append(
         "Number of main pipeline runs: {:d} total, {:d} Isr, {:d} SingleFrame, {:d} ApPipe".format(
@@ -248,6 +289,28 @@ def make_summary_message(day_obs, instrument):
     output_lines.append(
         f"<https://usdf-rsp.slac.stanford.edu/times-square/github/lsst-sqre/times-square-usdf/prompt-processing/groups?date={day_obs}&instrument={instrument}&survey={survey}&mode=DEBUG&ts_hide_code=1|Timing plots>"
     )
+
+    df = get_df_from_loki(
+        day_obs, instrument=instrument, match_string='|= "export_outputs"'
+    )
+    df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
+        ["group", "detector"]
+    )
+    if not df.empty:
+        output_lines.append(f"- {len(df)} failure in export_outputs.")
+        output_lines.append(f"(Partial export may be incorrectly counted as success)")
+
+    df = get_df_from_loki(
+        day_obs,
+        instrument=instrument,
+        match_string='|= "Signal SIGTERM detected, cleaning up and shutting down."',
+        match_string2="",
+    )
+    df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
+        ["group", "detector"]
+    )
+    if not df.empty:
+        output_lines.append(f"- {len(df)} had SIGTERM.")
 
     return "\n".join(output_lines)
 

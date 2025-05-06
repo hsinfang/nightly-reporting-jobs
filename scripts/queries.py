@@ -23,7 +23,7 @@ __all__ = [
     "get_next_visit_events",
     "get_no_work_count_from_loki",
     "get_status_code_from_loki",
-    "get_timeout_from_loki",
+    "get_df_from_loki",
 ]
 import logging
 import json
@@ -180,13 +180,24 @@ def get_status_code_from_loki(day_obs):
     return df
 
 
-def get_timeout_from_loki(day_obs, instrument="LSSTCam"):
+def get_df_from_loki(
+    day_obs,
+    instrument="LSSTCam",
+    match_string="",
+    match_string2='|= "Processing failed"',
+):
     """Get the IDs of the timed out cases.
 
     Parameters
     ----------
     day_obs : `str`
         day_obs in the format of YYYY-MM-DD.
+    instrument : `str`
+        Instrument name.
+    match_string : `str`
+        Lok stream selector for Loki query.
+    match_string2 : `str`
+        Lok stream selector for Loki query.
 
     Returns
     -------
@@ -195,7 +206,7 @@ def get_timeout_from_loki(day_obs, instrument="LSSTCam"):
     results = query_loki(
         day_obs,
         container_name=instrument.lower(),
-        search_string='|= "Processing failed" |= "Timed out waiting for image" ',
+        search_string=f"{match_string} {match_string2}",
     )
 
     if not results:

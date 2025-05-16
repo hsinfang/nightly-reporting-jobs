@@ -137,6 +137,7 @@ def make_summary_message(day_obs, instrument):
                 where=f"exposure.science_program IN (survey)",
                 bind={"survey": survey},
                 limit=None,
+                explain=False,
             )
         ]
     )

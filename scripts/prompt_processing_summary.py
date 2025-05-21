@@ -46,7 +46,7 @@ def make_summary_message(day_obs, instrument):
     raw_exposures = butler_nocollection.query_dimension_records(
         "exposure",
         instrument=instrument,
-        where=f"day_obs={day_obs_int} AND exposure.can_see_sky AND exposure.observation_type='science'",
+        where=f"day_obs={day_obs_int} AND (exposure.can_see_sky or exposure.can_see_sky=NULL) AND exposure.observation_type='science'",
         explain=False,
         limit=None,
     )

@@ -91,38 +91,26 @@ def make_summary_message(day_obs, instrument):
         output_lines.append(f"No output collection was found for {day_obs:s}")
         return "\n".join(output_lines)
 
-    isr_counts = len(
-        butler_nocollection.query_datasets(
-            "isr_log",
-            collections=f"{instrument}/prompt/output-{day_obs:s}/Isr/*",
-            where=f"exposure.science_program IN (survey)",
-            bind={"survey": survey},
-            find_first=False,
-            explain=False,
-            limit=None,
-        )
+    isr_counts = count_datasets(
+        butler_nocollection,
+        "isr_log",
+        f"{instrument}/prompt/output-{day_obs:s}/Isr/*",
+        where=f"exposure.science_program IN (survey)",
+        bind={"survey": survey},
     )
-    sfm_counts = len(
-        butler_nocollection.query_datasets(
-            "isr_log",
-            collections=f"{instrument}/prompt/output-{day_obs:s}/SingleFrame*",
-            where=f"exposure.science_program IN (survey)",
-            bind={"survey": survey},
-            find_first=False,
-            explain=False,
-            limit=None,
-        )
+    sfm_counts = count_datasets(
+        butler_nocollection,
+        "isr_log",
+        f"{instrument}/prompt/output-{day_obs:s}/SingleFrame*",
+        where=f"exposure.science_program IN (survey)",
+        bind={"survey": survey},
     )
-    dia_counts = len(
-        butler_nocollection.query_datasets(
-            "isr_log",
-            collections=f"{instrument}/prompt/output-{day_obs:s}/ApPipe*",
-            where=f"exposure.science_program IN (survey)",
-            bind={"survey": survey},
-            find_first=False,
-            explain=False,
-            limit=None,
-        )
+    dia_counts = count_datasets(
+        butler_nocollection,
+        "isr_log",
+        f"{instrument}/prompt/output-{day_obs:s}/ApPipe*",
+        where=f"exposure.science_program IN (survey)",
+        bind={"survey": survey},
     )
 
     b = dafButler.Butler(
@@ -205,14 +193,12 @@ def make_summary_message(day_obs, instrument):
         )
     )
 
-    isr_outputs = len(
-        b.query_datasets(
-            "post_isr_image",
-            where=f"exposure.science_program IN (survey)",
-            bind={"survey": survey},
-            explain=False,
-            limit=None,
-        )
+    isr_outputs = count_datasets(
+        b,
+        "post_isr_image",
+        collection,
+        where=f"exposure.science_program IN (survey)",
+        bind={"survey": survey},
     )
     output_lines.append(
         "- Isr: {:d} attempts, {:d} succeeded.".format(
@@ -220,14 +206,12 @@ def make_summary_message(day_obs, instrument):
         )
     )
 
-    sfm_outputs = len(
-        b.query_datasets(
-            "initial_photometry_match_detector",
-            where=f"exposure.science_program IN (survey)",
-            bind={"survey": survey},
-            explain=False,
-            limit=None,
-        )
+    sfm_outputs = count_datasets(
+        b,
+        "initial_photometry_match_detector",
+        collection,
+        where=f"exposure.science_program IN (survey)",
+        bind={"survey": survey},
     )
     output_lines.append(
         "- ProcessCcd: {:d} attempts, {:d} succeeded, {:d} failed.".format(

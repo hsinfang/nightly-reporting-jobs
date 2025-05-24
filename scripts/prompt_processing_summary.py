@@ -65,6 +65,8 @@ def make_summary_message(day_obs, instrument):
         explain=False,
         limit=None,
     )
+    groups = [r.group for r in raw_exposures]
+    groups_without_events = set(groups) - set(next_visits.reset_index()["groupId"])
 
     raw_counts = count_datasets(
         butler_nocollection,
@@ -78,7 +80,10 @@ def make_summary_message(day_obs, instrument):
         f"Number for {survey}: {len(next_visits)}/{total_visit_count} nextVisit, "
         f"{len(raw_exposures):d} raws ({raw_counts} images)"
     )
-
+    if groups_without_events:
+        output_lines.append(
+            f"{len(groups_without_events)} raws had no nextVisit: {",".join(groups_without_events)}"
+        )
     if len(raw_exposures) == 0:
         return "\n".join(output_lines)
 
@@ -141,13 +146,14 @@ def make_summary_message(day_obs, instrument):
         output_lines.append(
             f"Number of expected preprocessing: {total_visit_count} raws*(189-{off_detector} detectors)={total_visit_count * (189-off_detector)}. Successful: {len(df)}. "
         )
-        expected = len(raw_exposures) * (189 - off_detector)
+        expected = (len(raw_exposures) - len(groups_without_events)) * (
+            189 - off_detector
+        )
         missed = expected - len(log_visit_detector)
         output_lines.append(
-            f"Number of expected processing: {len(raw_exposures)} raws*(189-{off_detector} detectors)={expected:d}. Missed {missed}"
+            f"Number of expected processing: ({len(raw_exposures)}-{len(groups_without_events)}) raws*(189-{off_detector} detectors)={expected:d}. Missed {missed}"
         )
 
-    groups = [r.group for r in raw_exposures]
     df = get_df_from_loki(
         day_obs, instrument=instrument, match_string='|= "Timed out waiting for image"'
     )

@@ -292,6 +292,7 @@ RECURRENT_ERRORS_BY_TASK = {
         "RuntimeError: No good PSF candidates to pass to PSFEx",
         "RuntimeError: No objects passed our cuts for consideration as psf stars",
         "Unable to determine kernel sum; 0 candidates",
+        "Could not compute LinearTransform inverse",
     ],
 }
 

@@ -134,6 +134,8 @@ def make_summary_message(day_obs, instrument):
             )
         ]
     )
+    missed = 0
+    counted = 0
     # LSSTCam number of active detector is hard-coded here.
     if instrument == "LSSTCam":
         off_detector = 18
@@ -157,31 +159,41 @@ def make_summary_message(day_obs, instrument):
     df = get_df_from_loki(
         day_obs, instrument=instrument, match_string='|= "Timed out waiting for image"'
     )
+    count_total = len(df)
     df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
         ["group", "detector"]
     )
     if not df.empty:
-        output_lines.append(f"- {len(df)} unexpected timeout.")
+        counted += len(df)
+        output_lines.append(
+            f"- {len(df)} unexpected timeout ({count_total} total including non-visits)."
+        )
     df = get_df_from_loki(
         day_obs,
         instrument=instrument,
         match_string='|= "MiddlewareInterface(_get_central_butler()"',
     )
+    count_total = len(df)
     df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
         ["group", "detector"]
     )
     if not df.empty:
+        counted += len(df)
         output_lines.append(
-            f"- {len(df)} failure in instantiating MWI central butler connection."
+            f"- {len(df)} failure in instantiating MWI central butler connection ({count_total} total including non-visits)."
         )
     df = get_df_from_loki(
         day_obs, instrument=instrument, match_string='|= "prep_butler"'
     )
+    count_total = len(df)
     df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
         ["group", "detector"]
     )
     if not df.empty:
-        output_lines.append(f"- {len(df)} failure in prep_butler.")
+        counted += len(df)
+        output_lines.append(
+            f"- {len(df)} failure in prep_butler ({count_total} total including non-visits)."
+        )
     df = get_df_from_loki(
         day_obs,
         instrument=instrument,
@@ -191,7 +203,11 @@ def make_summary_message(day_obs, instrument):
         ["group", "detector"]
     )
     if not df.empty:
+        counted += len(df)
         output_lines.append(f"- {len(df)} failure in retrieving json sidecar.")
+
+    if missed > 0:
+        output_lines.append(f"- {missed - counted} unspecified")
 
     output_lines.append(
         "Number of main pipeline runs: {:d} total, {:d} Isr, {:d} SingleFrame, {:d} ApPipe".format(
@@ -225,6 +241,15 @@ def make_summary_message(day_obs, instrument):
         )
     )
 
+    sfm_output_subset = count_datasets(
+        butler_nocollection,
+        "initial_photometry_match_detector",
+        f"{instrument}/prompt/output-{day_obs:s}/ApPipe*",
+        where=f"exposure.science_program IN (survey)",
+        bind={"survey": survey},
+    )
+    count_failed_processCcd = dia_counts - sfm_output_subset
+
     dia_visit_detector = set(
         [
             (x.dataId["visit"], x.dataId["detector"])
@@ -242,13 +267,14 @@ def make_summary_message(day_obs, instrument):
     )
     count_no_apdb = count_no_work1 + count_no_work2
     output_lines.append(
-        "- ApPipe: {:d} attempts, {:d}+{:d}+{:d}={:d} succeeded, {:d} failed.".format(
+        "- ApPipe: {:d} attempts, {:d}+{:d}+{:d}={:d} succeeded, {:d} failed (including {:d} failed at ProcessCcd).".format(
             dia_counts,
             len(dia_visit_detector),
             count_no_work1,
             count_no_work2,
             len(dia_visit_detector) + count_no_apdb,
             dia_counts - len(dia_visit_detector) - count_no_apdb,
+            count_failed_processCcd,
         )
     )
 
@@ -297,11 +323,12 @@ def make_summary_message(day_obs, instrument):
         match_string='|= "Signal SIGTERM detected, cleaning up and shutting down."',
         match_string2="",
     )
+    count_total = len(df)
     df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
         ["group", "detector"]
     )
     if not df.empty:
-        output_lines.append(f"- {len(df)} had SIGTERM.")
+        output_lines.append(f"- At least {len(df)} had SIGTERM ({count_total} total including non-visits).")
 
     return "\n".join(output_lines)
 

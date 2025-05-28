@@ -146,7 +146,7 @@ def make_summary_message(day_obs, instrument):
             match_string2="",
         )
         output_lines.append(
-            f"Number of expected preprocessing: {total_visit_count} raws*(189-{off_detector} detectors)={total_visit_count * (189-off_detector)}. Successful: {len(df)}. "
+            f"Number of expected preprocessing: {total_visit_count} nextVisits*(189-{off_detector} detectors)={total_visit_count * (189-off_detector)}. Successful: {len(df)}. "
         )
         expected = (len(raw_exposures) - len(groups_without_events)) * (
             189 - off_detector
@@ -166,7 +166,7 @@ def make_summary_message(day_obs, instrument):
     if not df.empty:
         counted += len(df)
         output_lines.append(
-            f"- {len(df)} unexpected timeout ({count_total} total including non-visits)."
+            f"- {len(df)} unexpected timeout ({count_total} total including raws not received)."
         )
     df = get_df_from_loki(
         day_obs,
@@ -180,7 +180,7 @@ def make_summary_message(day_obs, instrument):
     if not df.empty:
         counted += len(df)
         output_lines.append(
-            f"- {len(df)} failure in instantiating MWI central butler connection ({count_total} total including non-visits)."
+            f"- {len(df)} failure in instantiating MWI central butler connection ({count_total} total including raws not received)."
         )
     df = get_df_from_loki(
         day_obs, instrument=instrument, match_string='|= "prep_butler"'
@@ -192,7 +192,7 @@ def make_summary_message(day_obs, instrument):
     if not df.empty:
         counted += len(df)
         output_lines.append(
-            f"- {len(df)} failure in prep_butler ({count_total} total including non-visits)."
+            f"- {len(df)} failure in prep_butler ({count_total} total including raws not received)."
         )
     df = get_df_from_loki(
         day_obs,
@@ -210,7 +210,7 @@ def make_summary_message(day_obs, instrument):
         output_lines.append(f"- {missed - counted} unspecified")
 
     output_lines.append(
-        "Number of main pipeline runs: {:d} total, {:d} Isr, {:d} SingleFrame, {:d} ApPipe".format(
+        "Number of main pipeline runs with outputs: {:d} total, {:d} Isr, {:d} SingleFrame, {:d} ApPipe".format(
             len(log_visit_detector), isr_counts, sfm_counts, dia_counts
         )
     )
@@ -223,7 +223,7 @@ def make_summary_message(day_obs, instrument):
         bind={"survey": survey},
     )
     output_lines.append(
-        "- Isr: {:d} attempts, {:d} succeeded.".format(
+        "- isr: {:d} attempts with outputs, {:d} passed.".format(
             isr_counts + sfm_counts + dia_counts, isr_outputs
         )
     )
@@ -236,8 +236,15 @@ def make_summary_message(day_obs, instrument):
         bind={"survey": survey},
     )
     output_lines.append(
-        "- ProcessCcd: {:d} attempts, {:d} succeeded, {:d} failed.".format(
+        "- calibrateImage: {:d} attempts with outputs, {:d} passed, {:d} failed.".format(
             sfm_counts + dia_counts, sfm_outputs, sfm_counts + dia_counts - sfm_outputs
+        )
+    )
+    output_lines.extend(
+        count_recurrent_errors(
+            b,
+            f"visit.science_program='{survey}'AND instrument='{instrument}'",
+            "calibrateImage",
         )
     )
 
@@ -248,7 +255,7 @@ def make_summary_message(day_obs, instrument):
         where=f"exposure.science_program IN (survey)",
         bind={"survey": survey},
     )
-    count_failed_processCcd = dia_counts - sfm_output_subset
+    count_failed_calibrateImage = dia_counts - sfm_output_subset
 
     dia_visit_detector = set(
         [
@@ -267,28 +274,20 @@ def make_summary_message(day_obs, instrument):
     )
     count_no_apdb = count_no_work1 + count_no_work2
     output_lines.append(
-        "- ApPipe: {:d} attempts, {:d}+{:d}+{:d}={:d} succeeded, {:d} failed (including {:d} failed at ProcessCcd).".format(
+        "- associateApdb: {:d} attempts with outputs, {:d}+{:d}+{:d}={:d} passed, {:d} failed".format(
             dia_counts,
             len(dia_visit_detector),
             count_no_work1,
             count_no_work2,
             len(dia_visit_detector) + count_no_apdb,
             dia_counts - len(dia_visit_detector) - count_no_apdb,
-            count_failed_processCcd,
         )
     )
-
-    output_lines.append(
-        f"<https://usdf-rsp.slac.stanford.edu/times-square/github/lsst-dm/vv-team-notebooks/PREOPS-prompt-error-msgs?day_obs={day_obs}&instrument={instrument}&ts_hide_code=1&survey={survey}|Full Error Log>"
-    )
-
-    output_lines.extend(
-        count_recurrent_errors(
-            b,
-            f"visit.science_program='{survey}'AND instrument='{instrument}'",
-            "calibrateImage",
+    if count_failed_calibrateImage > 0:
+        output_lines.append(
+            "  - {:d} failed at single frame stage".format(count_failed_calibrateImage)
         )
-    )
+
     if dia_counts > 0 and (dia_counts - len(dia_visit_detector) - count_no_apdb) > 0:
         output_lines.extend(
             count_recurrent_errors(
@@ -298,10 +297,9 @@ def make_summary_message(day_obs, instrument):
             )
         )
 
-    raws = {r.id: r.group for r in raw_exposures}
-    log_group_detector = {
-        (raws[visit], detector) for visit, detector in log_visit_detector
-    }
+    output_lines.append(
+        f"<https://usdf-rsp.slac.stanford.edu/times-square/github/lsst-dm/vv-team-notebooks/PREOPS-prompt-error-msgs?day_obs={day_obs}&instrument={instrument}&ts_hide_code=1&survey={survey}|Full Error Log>"
+    )
 
     output_lines.append(
         f"<https://usdf-rsp.slac.stanford.edu/times-square/github/lsst-sqre/times-square-usdf/prompt-processing/groups?date={day_obs}&instrument={instrument}&survey={survey}&mode=DEBUG&ts_hide_code=1|Timing plots>"
@@ -328,7 +326,9 @@ def make_summary_message(day_obs, instrument):
         ["group", "detector"]
     )
     if not df.empty:
-        output_lines.append(f"- At least {len(df)} had SIGTERM ({count_total} total including non-visits).")
+        output_lines.append(
+            f"- At least {len(df)} had SIGTERM ({count_total} total including raws not received)."
+        )
 
     return "\n".join(output_lines)
 
@@ -398,10 +398,10 @@ def count_recurrent_errors(butler, where, task):
     for err in recurrent_errors:
         count = _count_error(err, visit_errors)
         if count:
-            lines.append(f"- {count} {err}")
+            lines.append(f"    - {count} {err}")
             total_count += count
     if lines:
-        lines.insert(0, f"Among {task} errors, {total_count} were")
+        lines.insert(0, f"    Among {task} errors, {total_count} were")
     return lines
 
 

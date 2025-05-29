@@ -194,6 +194,18 @@ def make_summary_message(day_obs, instrument):
         output_lines.append(
             f"- {len(df)} failure in prep_butler ({count_total} total including raws not received)."
         )
+        lines = _count_messages(
+            df,
+            [
+                "botocore.exceptions.ClientError",
+                "SSL SYSCALL error: EOF detected",
+                "SSL connection has been closed unexpectedly",
+                "server closed the connection unexpectedly",
+            ],
+        )
+        if lines:
+            output_lines.extend(lines)
+
     df = get_df_from_loki(
         day_obs,
         instrument=instrument,
@@ -313,7 +325,20 @@ def make_summary_message(day_obs, instrument):
     )
     if not df.empty:
         output_lines.append(f"- {len(df)} failure in export_outputs.")
-        output_lines.append(f"(Partial export may be incorrectly counted as success)")
+        output_lines.append(f"  (Partial export may be incorrectly counted as success)")
+
+        lines = _count_messages(
+            df,
+            [
+                "botocore.exceptions.ClientError",
+                "SSL SYSCALL error: EOF detected",
+                "SSL connection has been closed unexpectedly",
+                "server closed the connection unexpectedly",
+                "psycopg2.errors.UniqueViolation",
+            ],
+        )
+        if lines:
+            output_lines.extend(lines)
 
     df = get_df_from_loki(
         day_obs,
@@ -407,6 +432,15 @@ def count_recurrent_pipeline_errors(butler, where, task):
 
 def _count_error(errMsg, visit_errors):
     return len([_.message for _ in visit_errors if errMsg in _.message])
+
+
+def _count_messages(df, messages):
+    lines = []
+    for msg in messages:
+        sub_df = df[df["message"].str.contains(msg, na=False)]
+        if not sub_df.empty:
+            lines.append(f"  - {len(sub_df)}: {msg}.")
+    return lines
 
 
 if __name__ == "__main__":

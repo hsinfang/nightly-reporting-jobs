@@ -230,19 +230,37 @@ def get_df_from_loki(
     return df
 
 
-def get_no_work_count_from_loki(day_obs, task_name, instrument="LSSTCam"):
+def get_no_work_count_from_loki(
+    day_obs, task_name, instrument="LSSTCam", visit_detector=None
+):
+    """Count the numbers with no work to do
+
+    Parameters
+    ----------
+    visit_detector: `set`, optional
+        A set of (visit, detector) tuples to filter with. If given,
+        only count numbers overlapping this set.
+    """
     results = query_loki(
         day_obs,
         container_name=instrument.lower(),
         search_string=f'|= "Nothing to do for task \'{task_name}"',
     )
     count1 = len(results.splitlines())
+    # These can include images failing at single frame processing after dropping ap tasks
+    # Only want those with sfm outputs and also dropping ap task
     results = query_loki(
         day_obs,
         container_name=instrument.lower(),
         search_string=f'|= "Dropping task {task_name} because no quanta remain (1 had no work to do)"',
     )
     count2 = len(results.splitlines())
+    if visit_detector is not None:
+        df = parse_loki_results(results)
+        matches = df[
+            df[["exposure", "detector"]].apply(tuple, axis=1).isin(visit_detector)
+        ]
+        count2 = len(matches)
     return count1, count2
 
 
@@ -278,3 +296,28 @@ def get_unsupported_surveys_from_loki(day_obs, instrument="LSSTCam"):
         if m:
             unsupported_surveys |= {m["survey"]}
     return unsupported_surveys
+
+
+def parse_loki_results(results):
+    """Make Loki results into a DataFrame
+
+    Parameters
+    ----------
+    results : `str`
+
+    Returns
+    -------
+    df : `pandas.DataFrame`
+    """
+    rows = []
+    if not results:
+        return pandas.DataFrame(columns=["group", "detector", "exposure"])
+    for line in results.splitlines():
+        outer = json.loads(line)
+        inner = json.loads(outer["line"])
+        rows.append(inner)
+    df = pandas.DataFrame(rows)
+    df["exposure"] = df["exposures"].apply(
+        lambda x: x[0] if isinstance(x, list) and x else None
+    )
+    return df[["group", "detector", "exposure"]]

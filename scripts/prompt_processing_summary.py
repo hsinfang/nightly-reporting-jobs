@@ -260,14 +260,20 @@ def make_summary_message(day_obs, instrument):
         )
     )
 
-    sfm_output_subset = count_datasets(
-        butler_nocollection,
-        "initial_photometry_match_detector",
-        f"{instrument}/prompt/output-{day_obs:s}/ApPipe*",
-        where=f"exposure.science_program IN (survey)",
-        bind={"survey": survey},
+    sfm_output_subset_visit_detector = set(
+        [
+            (x.dataId["visit"], x.dataId["detector"])
+            for x in butler_nocollection.query_datasets(
+                "initial_photometry_match_detector",
+                collections=f"{instrument}/prompt/output-{day_obs:s}/ApPipe*",
+                where=f"exposure.science_program IN (survey)",
+                bind={"survey": survey},
+                find_first=False,
+                explain=False,
+                limit=None,
+            )
+        ]
     )
-    count_failed_calibrateImage = dia_counts - sfm_output_subset
 
     dia_visit_detector = set(
         [
@@ -282,7 +288,7 @@ def make_summary_message(day_obs, instrument):
         ]
     )
     count_no_work1, count_no_work2 = get_no_work_count_from_loki(
-        day_obs, "associateApdb"
+        day_obs, "associateApdb", visit_detector=sfm_output_subset_visit_detector
     )
     count_no_apdb = count_no_work1 + count_no_work2
     output_lines.append(
@@ -295,9 +301,9 @@ def make_summary_message(day_obs, instrument):
             dia_counts - len(dia_visit_detector) - count_no_apdb,
         )
     )
-    if count_failed_calibrateImage > 0:
+    if sfm_output_subset_visit_detector:
         output_lines.append(
-            "  - {:d} failed at single frame stage".format(count_failed_calibrateImage)
+            f"  - {dia_counts - len(sfm_output_subset_visit_detector)} failed at single frame stage"
         )
 
     if dia_counts > 0 and (dia_counts - len(dia_visit_detector) - count_no_apdb) > 0:

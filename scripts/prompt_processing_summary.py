@@ -152,9 +152,6 @@ def make_summary_message(day_obs, instrument):
             189 - off_detector
         )
         missed = expected - len(log_visit_detector)
-        output_lines.append(
-            f"Number of expected processing: ({len(raw_exposures)}-{len(groups_without_events)}) raws*(189-{off_detector} detectors)={expected:d}. Missed {missed}"
-        )
 
     df = get_df_from_loki(
         day_obs, instrument=instrument, match_string='|= "Timed out waiting for image"'
@@ -206,6 +203,9 @@ def make_summary_message(day_obs, instrument):
         if lines:
             output_lines.extend(lines)
 
+    output_lines.append(
+        f"Number of expected processing: ({len(raw_exposures)}-{len(groups_without_events)}) raws*(189-{off_detector} detectors)={expected:d}. Missed {missed}"
+    )
     df = get_df_from_loki(
         day_obs,
         instrument=instrument,

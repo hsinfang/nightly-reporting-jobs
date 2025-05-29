@@ -241,7 +241,7 @@ def make_summary_message(day_obs, instrument):
         )
     )
     output_lines.extend(
-        count_recurrent_errors(
+        count_recurrent_pipeline_errors(
             b,
             f"visit.science_program='{survey}'AND instrument='{instrument}'",
             "calibrateImage",
@@ -290,7 +290,7 @@ def make_summary_message(day_obs, instrument):
 
     if dia_counts > 0 and (dia_counts - len(dia_visit_detector) - count_no_apdb) > 0:
         output_lines.extend(
-            count_recurrent_errors(
+            count_recurrent_pipeline_errors(
                 b,
                 f"visit.science_program='{survey}'AND instrument='{instrument}'",
                 "subtractImages",
@@ -378,7 +378,7 @@ RECURRENT_ERRORS_BY_TASK = {
 }
 
 
-def count_recurrent_errors(butler, where, task):
+def count_recurrent_pipeline_errors(butler, where, task):
     # with open("error_config.yaml") as f:
     #    RECURRENT_ERRORS_BY_TASK = yaml.safe_load(f)
     recurrent_errors = RECURRENT_ERRORS_BY_TASK.get(task, [])

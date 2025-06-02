@@ -218,6 +218,20 @@ def make_summary_message(day_obs, instrument):
         counted += len(df)
         output_lines.append(f"- {len(df)} failure in retrieving json sidecar.")
 
+    df = get_df_from_loki(
+        day_obs,
+        instrument=instrument,
+        match_string='|= "NoGoodPipelinesError: No main pipeline graph could be built"',
+    )
+    df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
+        ["group", "detector"]
+    )
+    if not df.empty:
+        counted += len(df)
+        output_lines.append(
+            f"- {len(df)} NoGoodPipelinesError: {df.reset_index()['group'].unique().tolist()}"
+        )
+
     if missed > 0:
         output_lines.append(f"- {missed - counted} unspecified")
 

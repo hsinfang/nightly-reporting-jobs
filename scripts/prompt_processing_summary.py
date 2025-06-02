@@ -203,6 +203,30 @@ def make_summary_message(day_obs, instrument):
         if lines:
             output_lines.extend(lines)
 
+    df = get_df_from_loki(
+        day_obs,
+        instrument=instrument,
+        match_string='|= "loadDiaCatalogs" |= "cassandra"',
+        match_string2='| json | level="ERROR"',
+    )
+    count_total = len(df)
+    df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
+        ["group", "detector"]
+    )
+    if count_total > 0:
+        output_lines.append(
+            f"- {len(df)} loadDiaCatalogs errors from cassandra ({count_total} total including raws not received)."
+        )
+        lines = _count_messages(
+            df,
+            [
+                "cassandra.cluster.NoHostAvailable",
+                "Error from server",
+            ],
+        )
+        if lines:
+            output_lines.extend(lines)
+
     output_lines.append(
         f"Number of expected processing: ({len(raw_exposures)}-{len(groups_without_events)}) raws*(189-{off_detector} detectors)={expected:d}. Missed {missed}"
     )
@@ -429,7 +453,8 @@ RECURRENT_ERRORS_BY_TASK = {
     ],
     "associateApdb": [
         "OperationTimedOut",  # cassandra.OperationTimedOut
-        "Control connection failed to connect", # cassandra.cluster.NoHostAvailable
+        "Control connection failed to connect",  # cassandra.cluster.NoHostAvailable
+        "Error from server",
     ],
 }
 

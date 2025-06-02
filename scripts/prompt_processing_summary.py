@@ -160,7 +160,7 @@ def make_summary_message(day_obs, instrument):
     df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
         ["group", "detector"]
     )
-    if not df.empty:
+    if count_total > 0:
         counted += len(df)
         output_lines.append(
             f"- {len(df)} unexpected timeout ({count_total} total including raws not received)."
@@ -174,7 +174,7 @@ def make_summary_message(day_obs, instrument):
     df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
         ["group", "detector"]
     )
-    if not df.empty:
+    if count_total > 0:
         counted += len(df)
         output_lines.append(
             f"- {len(df)} failure in instantiating MWI central butler connection ({count_total} total including raws not received)."
@@ -186,7 +186,7 @@ def make_summary_message(day_obs, instrument):
     df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
         ["group", "detector"]
     )
-    if not df.empty:
+    if count_total > 0:
         counted += len(df)
         output_lines.append(
             f"- {len(df)} failure in prep_butler ({count_total} total including raws not received)."
@@ -356,7 +356,7 @@ def make_summary_message(day_obs, instrument):
     df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
         ["group", "detector"]
     )
-    if not df.empty:
+    if count_total > 0:
         output_lines.append(
             f"- At least {len(df)} had SIGTERM ({count_total} total including raws not received)."
         )

@@ -328,6 +328,13 @@ def make_summary_message(day_obs, instrument):
                 "subtractImages",
             )
         )
+        output_lines.extend(
+            count_recurrent_pipeline_errors(
+                b,
+                f"visit.science_program='{survey}'AND instrument='{instrument}'",
+                "associateApdb",
+            )
+        )
 
     output_lines.append(
         f"<https://usdf-rsp.slac.stanford.edu/times-square/github/lsst-dm/vv-team-notebooks/PREOPS-prompt-error-msgs?day_obs={day_obs}&instrument={instrument}&ts_hide_code=1&survey={survey}|Full Error Log>"
@@ -419,6 +426,10 @@ RECURRENT_ERRORS_BY_TASK = {
         "RuntimeError: No objects passed our cuts for consideration as psf stars",
         "Unable to determine kernel sum; 0 candidates",
         "Could not compute LinearTransform inverse",
+    ],
+    "associateApdb": [
+        "OperationTimedOut",  # cassandra.OperationTimedOut
+        "Control connection failed to connect", # cassandra.cluster.NoHostAvailable
     ],
 }
 

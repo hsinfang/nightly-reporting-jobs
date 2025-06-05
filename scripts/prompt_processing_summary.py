@@ -267,20 +267,20 @@ def make_summary_message(day_obs, instrument):
 
     isr_outputs = count_datasets(
         b,
-        "post_isr_image",
+        "calibrateImage_log",  # this misses ISR-only
         collection,
         where=f"exposure.science_program IN (survey)",
         bind={"survey": survey},
     )
     output_lines.append(
-        "- isr: {:d} attempts with outputs, {:d} passed.".format(
+        "- isr: {:d} attempts with outputs, {:d} passed not including ISR-only attempts.".format(
             isr_counts + sfm_counts + dia_counts, isr_outputs
         )
     )
 
     sfm_outputs = count_datasets(
         b,
-        "initial_photometry_match_detector",
+        "analyzePreliminarySummaryStats_log",
         collection,
         where=f"exposure.science_program IN (survey)",
         bind={"survey": survey},
@@ -302,7 +302,7 @@ def make_summary_message(day_obs, instrument):
         [
             (x.dataId["visit"], x.dataId["detector"])
             for x in butler_nocollection.query_datasets(
-                "initial_photometry_match_detector",
+                "analyzePreliminarySummaryStats_log",
                 collections=f"{instrument}/prompt/output-{day_obs:s}/ApPipe*",
                 where=f"exposure.science_program IN (survey)",
                 bind={"survey": survey},
@@ -317,7 +317,7 @@ def make_summary_message(day_obs, instrument):
         [
             (x.dataId["visit"], x.dataId["detector"])
             for x in b.query_datasets(
-                "apdb_marker",
+                "dia_source_apdb",
                 where=f"exposure.science_program IN (survey)",
                 bind={"survey": survey},
                 explain=False,

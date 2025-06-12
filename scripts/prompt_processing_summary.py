@@ -369,7 +369,10 @@ def make_summary_message(day_obs, instrument):
     )
 
     df = get_df_from_loki(
-        day_obs, instrument=instrument, match_string='|= "export_outputs"'
+        day_obs,
+        instrument=instrument,
+        match_string='|= "export_outputs"',
+        match_string2='|= "Central repo export failed"',
     )
     df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
         ["group", "detector"]

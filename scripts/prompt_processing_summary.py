@@ -227,6 +227,18 @@ def make_summary_message(day_obs, instrument):
         if lines:
             output_lines.extend(lines)
 
+    df = get_df_from_loki(
+        day_obs,
+        instrument=instrument,
+        match_string='|= "Timed out connecting to raw microservice"',
+        match_string2='| json | level="ERROR"',
+    )
+    df = df[(df["instrument"] == instrument) & (df["group"].isin(groups))].set_index(
+        ["group", "detector"]
+    )
+    if len(df) > 0:
+        output_lines.append(f"- {len(df)} Timed out connecting to raw microservice.")
+
     output_lines.append(
         f"Number of expected processing: ({len(raw_exposures)}-{len(groups_without_events)}) raws*(189-{off_detector} detectors)={expected:d}. Missed {missed}"
     )

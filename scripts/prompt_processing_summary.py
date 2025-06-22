@@ -458,6 +458,9 @@ RECURRENT_ERRORS_BY_TASK = {
         "Exception ObjectSizeNoSourcesError",
         "Exception PsfexNoGoodStarsError",
         "Exception PsfexTooFewGoodStarsError",
+        "Exception TooManyCosmicRays",
+        "Exception TooManyMaskedPixelsError",
+        "No valid points to fit. Variance is likely zero",
     ],
     "subtractImages": [
         "RuntimeError: Cannot compute PSF matching kernel: too few sources selected",

@@ -21,8 +21,9 @@
 
 __all__ = [
     "get_next_visit_events",
+    "get_no_work_count_from_loki",
     "get_status_code_from_loki",
-    "get_timeout_from_loki",
+    "get_df_from_loki",
 ]
 import logging
 import json
@@ -105,7 +106,7 @@ async def get_next_visit_events(day_obs, instrument, survey=None):
     return df, canceled
 
 
-def query_loki(day_obs, pod_name, search_string):
+def query_loki(day_obs, container_name, search_string):
     """Query Grafana Loki for log records.
 
     Parameters
@@ -122,17 +123,17 @@ def query_loki(day_obs, pod_name, search_string):
         "--addr=http://sdfloki.slac.stanford.edu:80",
         "--timezone=UTC",
         "-q",
-        "--limit=10000",
+        "--limit=200000",
         "--proxy-url=http://sdfproxy.sdf.slac.stanford.edu:3128",
         f'--from={start.strftime("%Y-%m-%dT%H:%M:%SZ")}',
         f'--to={end.strftime("%Y-%m-%dT%H:%M:%SZ")}',
-        f'{{namespace="vcluster--usdf-prompt-processing",pod=~"{pod_name}-.+"}} {search_string}',
+        f'{{namespace="vcluster--usdf-prompt-processing",container="{container_name}"}} {search_string}',
     ]
 
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:
         _log.error("Loki query failed")
-        _log.error(results.stderr)
+        _log.error(result.stderr)
         return
 
     return result.stdout
@@ -154,7 +155,7 @@ def get_status_code_from_loki(day_obs):
     """
     results = query_loki(
         day_obs,
-        pod_name="next-visit-fan-out",
+        container_name="next-visit-fan-out",
         search_string='|~ "status code" |~ "for initial request"',
     )
     pattern = re.compile(
@@ -179,13 +180,24 @@ def get_status_code_from_loki(day_obs):
     return df
 
 
-def get_timeout_from_loki(day_obs):
+def get_df_from_loki(
+    day_obs,
+    instrument="LSSTCam",
+    match_string="",
+    match_string2='|= "Processing failed"',
+):
     """Get the IDs of the timed out cases.
 
     Parameters
     ----------
     day_obs : `str`
         day_obs in the format of YYYY-MM-DD.
+    instrument : `str`
+        Instrument name.
+    match_string : `str`
+        Lok stream selector for Loki query.
+    match_string2 : `str`
+        Lok stream selector for Loki query.
 
     Returns
     -------
@@ -193,8 +205,8 @@ def get_timeout_from_loki(day_obs):
     """
     results = query_loki(
         day_obs,
-        pod_name="prompt-proto-service",
-        search_string='|~ "Timed out waiting for image after receiving exposures"',
+        container_name=instrument.lower(),
+        search_string=f"{match_string} {match_string2}",
     )
 
     if not results:
@@ -218,11 +230,45 @@ def get_timeout_from_loki(day_obs):
     return df
 
 
-def get_skipped_surveys_from_loki(day_obs):
+def get_no_work_count_from_loki(
+    day_obs, task_name, instrument="LSSTCam", visit_detector=None
+):
+    """Count the numbers with no work to do
+
+    Parameters
+    ----------
+    visit_detector: `set`, optional
+        A set of (visit, detector) tuples to filter with. If given,
+        only count numbers overlapping this set.
+    """
     results = query_loki(
         day_obs,
-        pod_name="prompt-proto-service",
-        search_string='|~ "Skipping visit: No pipeline configured for"',
+        container_name=instrument.lower(),
+        search_string=f'|= "Nothing to do for task \'{task_name}"',
+    )
+    count1 = len(results.splitlines())
+    # These can include images failing at single frame processing after dropping ap tasks
+    # Only want those with sfm outputs and also dropping ap task
+    results = query_loki(
+        day_obs,
+        container_name=instrument.lower(),
+        search_string=f'|= "Dropping task {task_name} because no quanta remain (1 had no work to do)"',
+    )
+    count2 = len(results.splitlines())
+    if visit_detector is not None:
+        df = parse_loki_results(results)
+        matches = df[
+            df[["exposure", "detector"]].apply(tuple, axis=1).isin(visit_detector)
+        ]
+        count2 = len(matches)
+    return count1, count2
+
+
+def get_skipped_surveys_from_loki(day_obs, instrument="LSSTCam"):
+    results = query_loki(
+        day_obs,
+        container_name=instrument.lower(),
+        search_string='|= "Skipping visit: No pipeline configured for"',
     )
 
     pattern = re.compile(
@@ -236,11 +282,11 @@ def get_skipped_surveys_from_loki(day_obs):
     return skipped_surveys
 
 
-def get_unsupported_surveys_from_loki(day_obs):
+def get_unsupported_surveys_from_loki(day_obs, instrument="LSSTCam"):
     results = query_loki(
         day_obs,
-        pod_name="prompt-proto-service",
-        search_string='|~ "Unsupported survey"',
+        container_name=instrument.lower(),
+        search_string='|= "Unsupported survey"',
     )
 
     pattern = re.compile(r".*RuntimeError: Unsupported survey: (?P<survey>[-\w]*)")
@@ -250,3 +296,28 @@ def get_unsupported_surveys_from_loki(day_obs):
         if m:
             unsupported_surveys |= {m["survey"]}
     return unsupported_surveys
+
+
+def parse_loki_results(results):
+    """Make Loki results into a DataFrame
+
+    Parameters
+    ----------
+    results : `str`
+
+    Returns
+    -------
+    df : `pandas.DataFrame`
+    """
+    rows = []
+    if not results:
+        return pandas.DataFrame(columns=["group", "detector", "exposure"])
+    for line in results.splitlines():
+        outer = json.loads(line)
+        inner = json.loads(outer["line"])
+        rows.append(inner)
+    df = pandas.DataFrame(rows)
+    df["exposure"] = df["exposures"].apply(
+        lambda x: x[0] if isinstance(x, list) and x else None
+    )
+    return df[["group", "detector", "exposure"]]

@@ -195,9 +195,9 @@ def get_df_from_loki(
     instrument : `str`
         Instrument name.
     match_string : `str`
-        Lok stream selector for Loki query.
+        Loki stream selector for Loki query.
     match_string2 : `str`
-        Lok stream selector for Loki query.
+        Loki stream selector for Loki query.
 
     Returns
     -------

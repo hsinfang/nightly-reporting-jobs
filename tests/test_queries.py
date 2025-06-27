@@ -1,13 +1,16 @@
 import json
+import os
 import sys
 import unittest
 
 import pandas
 from pandas.testing import assert_frame_equal
 
-from queries import parse_loki_results
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scripts"))
+)
 
-sys.path.append("../scripts/")
+from queries import parse_loki_results
 
 
 class LokiResultsParsingTest(unittest.TestCase):

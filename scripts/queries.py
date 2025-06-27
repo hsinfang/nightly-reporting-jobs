@@ -197,7 +197,7 @@ def get_df_from_loki(
     match_string : `str`
         Loki stream selector for Loki query.
     match_string2 : `str`
-        Loki stream selector for Loki query.
+        Additional search/filter expression for the Loki query.
 
     Returns
     -------

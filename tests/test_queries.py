@@ -1,36 +1,36 @@
-import importlib
 import json
-import pytest
+import sys
+import unittest
 
-def load_parse_loki_results():
-    """Load and return :func:`parse_loki_results` from ``queries.py``."""
+import pandas
+from pandas.testing import assert_frame_equal
 
-    from pathlib import Path
+from queries import parse_loki_results
 
-    spec = importlib.util.spec_from_file_location(
-        "queries",
-        Path(__file__).resolve().parents[1] / "scripts" / "queries.py",
-    )
-    queries = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(queries)
-    return queries.parse_loki_results
+sys.path.append("../scripts/")
 
 
-def test_parse_empty():
-    parse = load_parse_loki_results()
-    df = parse("")
-    assert df.to_dict() == []
-    assert df._columns == ["group", "detector", "exposure"]
+class LokiResultsParsingTest(unittest.TestCase):
 
+    def test_parse_empty(self):
+        df = parse_loki_results("")
+        self.assertTrue(df.empty)
+        self.assertListEqual(list(df.columns), ["group", "detector", "exposure"])
 
-def test_parse_sample():
-    parse = load_parse_loki_results()
-    outer1 = {"line": json.dumps({"group": "g1", "detector": 1, "exposures": [101, 102]})}
-    outer2 = {"line": json.dumps({"group": "g2", "detector": 2, "exposures": [201]})}
-    results = "\n".join([json.dumps(outer1), json.dumps(outer2)])
-    df = parse(results)
-    assert df.to_dict() == [
-        {"group": "g1", "detector": 1, "exposure": 101},
-        {"group": "g2", "detector": 2, "exposure": 201},
-    ]
-
+    def test_parse_sample(self):
+        data = {
+            "group": ["g1", "g2"],
+            "detector": [1, 2],
+            "exposure": [2025001010123, 2025020200234],
+        }
+        results = "\r".join(
+            [
+                json.dumps(
+                    {"line": json.dumps({"group": g, "detector": d, "exposures": [e]})}
+                )
+                for g, d, e in zip(data["group"], data["detector"], data["exposure"])
+            ]
+        )
+        df = parse_loki_results(results)
+        expected = pandas.DataFrame(data=data)
+        assert_frame_equal(df, expected)

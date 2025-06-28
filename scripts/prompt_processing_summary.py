@@ -149,16 +149,15 @@ def make_summary_message(day_obs, instrument):
     )
     missed = 0
     counted = 0
-    if instrument == "LSSTCam":
-        df = get_df_from_loki(
-            day_obs,
-            instrument=instrument,
-            match_string='|= "Preprocessing pipeline successfully run."',
-            match_string2="",
-        )
-        output_lines.append(
-            f"Number of expected preprocessing: {total_visit_count} nextVisits*({total_detectors}-{off_detector} detectors)={expected_preprocessing}. Successful: {len(df)}. "
-        )
+    df = get_df_from_loki(
+        day_obs,
+        instrument=instrument,
+        match_string='|= "Preprocessing pipeline successfully run."',
+        match_string2="",
+    )
+    output_lines.append(
+        f"Number of expected preprocessing: {total_visit_count} nextVisits*({total_detectors}-{off_detector} detectors)={expected_preprocessing}. Successful: {len(df)}. "
+    )
     missed = expected - len(log_visit_detector)
 
     df, count_total = _get_filtered_loki_df(

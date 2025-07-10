@@ -449,11 +449,18 @@ def collect_loki_errors(day_obs, instrument, groups):
     """
 
     queries = {
-        "timeout": {"match_string": '|= "Timed out waiting for image"'},
-        "mwi_connection": {
-            "match_string": '|= "MiddlewareInterface(_get_central_butler()"'
+        "timeout": {
+            "match_string": '|= "Timed out waiting for image"',
+            "match_string2": '|= "Processing failed"',
         },
-        "prep_butler": {"match_string": '|= "prep_butler"'},
+        "mwi_connection": {
+            "match_string": '|= "MiddlewareInterface(_get_central_butler()"',
+            "match_string2": '|= "Processing failed"',
+        },
+        "prep_butler": {
+            "match_string": '|= "prep_butler"',
+            "match_string2": '|= "Processing failed"',
+        },
         "load_dia_catalogs": {
             "match_string": '|= "loadDiaCatalogs" |= "cassandra"',
             "match_string2": '| json | level="ERROR"',
@@ -463,10 +470,12 @@ def collect_loki_errors(day_obs, instrument, groups):
             "match_string2": '| json | level="ERROR"',
         },
         "json_sidecar": {
-            "match_string": '|= "RuntimeError: Unable to retrieve JSON sidecar"'
+            "match_string": '|= "RuntimeError: Unable to retrieve JSON sidecar"',
+            "match_string2": '|= "Processing failed"',
         },
         "no_pipeline": {
-            "match_string": '|= "NoGoodPipelinesError: No main pipeline graph could be built"'
+            "match_string": '|= "NoGoodPipelinesError: No main pipeline graph could be built"',
+            "match_string2": '|= "Processing failed"',
         },
         "export_outputs": {
             "match_string": '|= "export_outputs"',
